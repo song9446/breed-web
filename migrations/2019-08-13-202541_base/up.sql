@@ -27,6 +27,7 @@ CREATE TABLE characters (
     surname TEXT UNIQUE NOT NULL,
     matherid INTEGER REFERENCES characters (id),
     fatherid INTEGER REFERENCES characters (id),
+    partnerid INTEGER REFERENCES characters (id),
     ownerid INTEGER REFERENCES users (id),
     seed FLOAT[] NOT NULL,
     url TEXT NOT NULL,
