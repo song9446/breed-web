@@ -1,5 +1,5 @@
 class App {
-    constructor(server_url) {
+    constructor(server_url){
         this.server_url = server_url;
         this.characters = [];
         this.family_tree_root = null;
@@ -78,3 +78,11 @@ class App {
         });
     }
 };
+
+var app = new App("https://breed.moe");
+
+let app_vue = new Vue({
+    el: '#app',
+    data: app,
+    method: app,
+});
