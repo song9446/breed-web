@@ -4,6 +4,8 @@ CREATE TABLE users (
     password TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     nickname TEXT NOT NULL,
+    mana INTEGER NOT NULL DEFAULT 0,
+    mana_updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX users_userid_idx ON users (userid);
@@ -43,7 +45,7 @@ CREATE INDEX characters_fatherid_idx ON characters (fatherid);
 
 
 
-CREATE TABLE actions (
+/*CREATE TABLE actions (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT NOT NULL,
@@ -57,7 +59,7 @@ CREATE TABLE users_actions (
     actionid INTEGER NOT NULL REFERENCES actions (id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-CREATE INDEX users_actions_userid_idx ON users_actions (id, userid, actionid);
+CREATE INDEX users_actions_userid_idx ON users_actions (id, userid, actionid);*/
 
 
 CREATE TABLE traits (

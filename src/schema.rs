@@ -67,6 +67,8 @@ table! {
         password -> Text,
         email -> Text,
         nickname -> Text,
+        mana -> Int4,
+        mana_updated_at -> Timestamp,
         created_at -> Timestamp,
     }
 }

@@ -58,9 +58,11 @@ fn main() -> std::io::Result<()> {
             .data(web::JsonConfig::default().limit(4096))
             .service(
                 web::resource("/session")
-                .route(web::post().to_async(handlers::login))
-                .route(web::delete().to_async(handlers::join))
-                .route(web::get().to(handlers::logout)))
+                .route(web::get().to_async(handlers::reload_session))
+                .route(web::put().to_async(handlers::login))
+                .route(web::post().to_async(handlers::join))
+                .route(web::delete().to(handlers::logout))
+                )
             //.service(
                 //web::resource("/update")
                 //.route(web::get().to_async())

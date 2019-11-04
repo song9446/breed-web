@@ -4,6 +4,7 @@ let server_url;
 class Application {
     constructor(server_url){
         this.server_url = server_url;
+		this.logged_in = false;
         this.characters = [];
         this.family_tree_root = null;
         this.strangers = [];
@@ -45,12 +46,20 @@ class Application {
         this.family_tree_root = root;
         this.strangers = strangers;
     }
+	update(){
+        return fetch(this.server_url + "/update", {
+		})
+		.then(res => {
+		});
+	}
     establish_session(){
         return fetch(this.server_url + "/session", {
             method: 'get',
             credentials: 'same-origin',
         })
-        .then(res => this.parse_characters(res.json()));
+        .then(res => {
+			this.logged_in = true;
+        });
     }
     login(id, password){
         return fetch(this.server_url + "/session", {
@@ -60,7 +69,10 @@ class Application {
             headers:{
                 'Content-Type': 'application/json'
             }
-        });
+        })
+		.then(res => {
+			this.establish_session();
+		});
     }
     logout(){
         return fetch(this.server_url + "/session", {

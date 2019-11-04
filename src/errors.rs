@@ -1,5 +1,5 @@
 // errors.rs
-use actix_web::{error::ResponseError, HttpResponse};
+use actix_web::{error::{ResponseError, BlockingError}, HttpResponse};
 use derive_more::Display;
 use diesel::result::{DatabaseErrorKind, Error as DBError};
 use std::convert::From;
@@ -52,6 +52,16 @@ impl From<BTError> for ServiceError {
         // But this would be helpful to easily map errors as our app grows
         match error {
             _ => ServiceError::InternalServerError,
+        }
+    }
+}
+
+
+impl From<BlockingError<ServiceError>> for ServiceError {
+    fn from(error: BlockingError<ServiceError>) -> ServiceError {
+        match error {
+            BlockingError::Error(service_error) => service_error,
+            BlockingError::Canceled => ServiceError::InternalServerError,
         }
     }
 }

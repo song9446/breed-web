@@ -29,6 +29,14 @@ static ref RANDOM_CHARACTER_GEN_DURATION: chrono::Duration = chrono::Duration::d
 pub struct User {
     pub id: i32,
     pub nickname: String,
+	pub mana: i32,
+    pub mana_updated_at: chrono::NaiveDateTime,
+}
+impl User {
+	pub fn from_id(dbconn: &PgConnection, userid: &str, password: &str) -> Result<User, ServiceError> {
+	}
+	pub fn login(dbconn: &PgConnection, userid: &str, password: &str) -> Result<User, ServiceError> {
+	}
 }
 
 #[derive(Serialize, Deserialize, Insertable)]
@@ -42,19 +50,22 @@ pub struct NewUser {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Queryable, Debug)]
-pub struct Character<'a> {
+#[derive(Serialize, Deserialize, Queryable, Debug)]
+pub struct Character {
     pub id: i32,
-    pub firstname: &'a str,
-    pub parentid: Option<i32>,
+    pub firstname: String,
+    pub surname: String,
+    pub matherid: Option<i32>,
+    pub fatherid: Option<i32>,
     pub ownerid: Option<i32>,
     pub seed: Vec<f64>,
-    pub url: &'a str,
+    pub url: String,
     pub jobid: Option<i32>,
     pub height: f64,
+    pub created_at: chrono::NaiveDateTime,
     pub stats: Vec<i32>,
     pub stateid: i32,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    //pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Serialize, Deserialize, Insertable)]
