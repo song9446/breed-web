@@ -12,7 +12,13 @@ import { fade, fly } from 'svelte/transition';
 import { onMount } from 'svelte';
 import Draggable from './Draggable.svelte';
 
-export let character;
+export let character = {
+    "id": -1,
+    "firstname": "error?",
+    "surname": "",
+    "imageurl": "http://www.pngall.com/wp-content/uploads/2/Question-Mark-PNG-Picture.png",
+    "partnerid": 2,
+};
 let children_line_start = [0,0];
 let children_line_ends = [];
 let partner_line_start = null;
