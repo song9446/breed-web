@@ -1,6 +1,6 @@
 <script>
 import Character from './Character.svelte';
-let server_url;
+export let server_url;
 class Application {
     constructor(server_url){
         this.server_url = server_url;
