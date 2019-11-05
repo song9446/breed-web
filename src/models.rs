@@ -14,47 +14,61 @@ use diesel::{r2d2::ConnectionManager, PgConnection};
 use super::schema::*;
 pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
-const HEIGHT_MEAN:f64 = 160.0;
-const HEIGHT_VAR:f64 = 10.0;
-const STATS_NUM:i32 = 7;
-const STATS_MEAN:f64 = 5.0;
-const STATS_VAR:f64 = 5.0;
-const SEED_LEN: usize = 512;
-const RANDOM_CHARACTER_GEN_ACTION_ID: i32 = 1;
+pub const HEIGHT_MEAN:f64 = 160.0;
+pub const HEIGHT_VAR:f64 = 10.0;
+pub const STATS_NUM:i32 = 7;
+pub const STATS_MEAN:f64 = 5.0;
+pub const STATS_VAR:f64 = 5.0;
+pub const SEED_LEN: usize = 512;
+pub const SUMMON_MANA_COST:i32 = 3333;
+pub const MAX_MANA:i32 = 10000;
+pub const MANA_CHARGE_PER_DAY:i32 = 10000;
+pub const RANDOM_CHARACTER_GEN_ACTION_ID: i32 = 1;
 lazy_static!{
-static ref RANDOM_CHARACTER_GEN_DURATION: chrono::Duration = chrono::Duration::days(1);
 }
 
-#[derive(Serialize, Deserialize, Queryable)]
+#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations)]
 pub struct User {
     pub id: i32,
     pub nickname: String,
 	pub mana: i32,
+    pub mana_charge_per_day: i32,
+    pub max_mana: i32,
+    pub summon_mana_cost: i32,
     pub mana_updated_at: chrono::NaiveDateTime,
-}
-impl User {
-	pub fn from_id(dbconn: &PgConnection, userid: &str, password: &str) -> Result<User, ServiceError> {
-	}
-	pub fn login(dbconn: &PgConnection, userid: &str, password: &str) -> Result<User, ServiceError> {
-	}
 }
 
 #[derive(Serialize, Deserialize, Insertable)]
 #[table_name = "users"]
 pub struct NewUser {
-    pub id: i32,
     pub userid: String,
     pub password: String,
     pub email: String,
     pub nickname: String,
+    pub mana_charge_per_day: i32,
+    pub max_mana: i32,
+    pub summon_mana_cost: i32,
+}
+impl NewUser {
+    pub fn new(userid: String, password: String, email: String, nickname: String) -> Self {
+        NewUser {
+            userid: userid,
+            password: password,
+            email: email,
+            nickname: nickname,
+            mana_charge_per_day: MANA_CHARGE_PER_DAY,
+            max_mana: MAX_MANA,
+            summon_mana_cost: SUMMON_MANA_COST,
+        }
+    }
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Queryable, Debug)]
+#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug)]
 pub struct Character {
     pub id: i32,
     pub firstname: String,
-    pub surname: String,
+    pub surname: Option<String>,
     pub matherid: Option<i32>,
     pub fatherid: Option<i32>,
     pub ownerid: Option<i32>,
@@ -90,7 +104,7 @@ impl NewCharacter {
             fatherid:None,
             ownerid:None,
             seed,
-            url: base_62::encode(&seed_bytes),
+            url: base64::encode_config(&seed_bytes[..], base64::URL_SAFE),
             height: SmallRng::from_entropy().sample(StandardNormal)*HEIGHT_VAR+HEIGHT_MEAN,
             stats: (0..STATS_NUM).map(|_| (SmallRng::from_entropy().sample(StandardNormal)*STATS_VAR + STATS_MEAN) as i32).collect::<Vec<i32>>(),
         }
@@ -123,19 +137,9 @@ impl NewCharacter {
         }).collect();
         Ok(Self::new(new_seed).with_owner(owner_id).with_parents(mather_id, father_id))
     }
-    pub fn gerneate_random_action_try(dbconn: &PgConnection, ownerid:i32) -> Result<NewCharacter, ServiceError> {
-        use crate::schema::users_actions::dsl::*;
-        let last_create_action_at = users_actions
-            .select(diesel::dsl::max(created_at))
-            .filter(userid.eq(ownerid).and(
-                    actionid.eq(RANDOM_CHARACTER_GEN_ACTION_ID)))
-            .first::<Option<chrono::NaiveDateTime>>(dbconn)?
-            .unwrap_or(chrono::NaiveDateTime::from_timestamp(0,0));
-        if last_create_action_at + *RANDOM_CHARACTER_GEN_DURATION > Utc::now().naive_utc() {
-            return Err(ServiceError::Unexpired);
-        }
+    pub fn random(ownerid:i32) -> NewCharacter {
         let mut rng = rand::thread_rng();
         let seed = (0..SEED_LEN).map(|_| rng.gen::<f64>()).collect();
-        Ok(Self::new(seed).with_owner(ownerid))
+        Self::new(seed).with_owner(ownerid)
     }
 }

@@ -1,17 +1,8 @@
 table! {
-    actions (id) {
-        id -> Int4,
-        name -> Text,
-        description -> Text,
-        duration -> Nullable<Interval>,
-    }
-}
-
-table! {
     characters (id) {
         id -> Int4,
         firstname -> Text,
-        surname -> Text,
+        surname -> Nullable<Text>,
         matherid -> Nullable<Int4>,
         fatherid -> Nullable<Int4>,
         ownerid -> Nullable<Int4>,
@@ -68,16 +59,10 @@ table! {
         email -> Text,
         nickname -> Text,
         mana -> Int4,
+        max_mana -> Int4,
+        mana_charge_per_day -> Int4,
+        summon_mana_cost -> Int4,
         mana_updated_at -> Timestamp,
-        created_at -> Timestamp,
-    }
-}
-
-table! {
-    users_actions (id) {
-        id -> Int4,
-        userid -> Int4,
-        actionid -> Int4,
         created_at -> Timestamp,
     }
 }
@@ -87,16 +72,12 @@ joinable!(characters -> states (stateid));
 joinable!(characters -> users (ownerid));
 joinable!(characters_traits -> characters (characterid));
 joinable!(characters_traits -> traits (traitid));
-joinable!(users_actions -> actions (actionid));
-joinable!(users_actions -> users (userid));
 
 allow_tables_to_appear_in_same_query!(
-    actions,
     characters,
     characters_traits,
     jobs,
     states,
     traits,
     users,
-    users_actions,
 );

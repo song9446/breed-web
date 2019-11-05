@@ -17,7 +17,7 @@ export class Application {
     }
     login(id, password){
         return fetch(this.server_url + "/session", {
-            method: 'put',
+            method: 'post',
             credentials: 'same-origin',
             data:JSON.stringify({"id": id, "password": password}),
             headers:{
@@ -36,7 +36,7 @@ export class Application {
         })
     }
     join(id, password, surname, email){
-        return fetch(this.server_url + "/users", {
+        return fetch(this.server_url + "/accounts", {
             method: 'post',
             credentials: 'same-origin',
             data:JSON.stringify({
@@ -124,4 +124,4 @@ export class Application {
     };
     }
 };
-export const app = new Application("localhost");
+export const app = new Application("localhost:3000");

@@ -5,6 +5,9 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     nickname TEXT NOT NULL,
     mana INTEGER NOT NULL DEFAULT 0,
+    max_mana INTEGER NOT NULL DEFAULT 1000,
+    mana_charge_per_day INTEGER NOT NULL DEFAULT 3600,
+    summon_mana_cost INTEGER NOT NULL DEFAULT 333,
     mana_updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -26,10 +29,9 @@ CREATE TABLE states (
 CREATE TABLE characters (
     id SERIAL PRIMARY KEY,
     firstname TEXT NOT NULL,
-    surname TEXT UNIQUE NOT NULL,
+    surname TEXT,
     matherid INTEGER REFERENCES characters (id),
     fatherid INTEGER REFERENCES characters (id),
-    partnerid INTEGER REFERENCES characters (id),
     ownerid INTEGER REFERENCES users (id),
     seed FLOAT[] NOT NULL,
     url TEXT NOT NULL,

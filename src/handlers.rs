@@ -23,6 +23,8 @@ use serde_json::json;
 
 use r2d2_beanstalkd::BeanstalkdConnectionManager;
 
+use chrono::prelude::*;
+
 pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
 
 const HEIGHT_MEAN:f64 = 160.0;
@@ -37,36 +39,32 @@ pub struct GameData {
 	pub user: User,
 	pub characters: Vec<Character>,
 }
-
-pub fn join(new_user: web::Json<NewUser>, session: Session, pool: web::Data<Pool>)  -> impl Future<Item = HttpResponse, Error = ServiceError> {
+#[derive(Serialize, Deserialize)]
+pub struct JoinForm {
+    pub userid: String,
+    pub password: String,
+    pub email: String,
+    pub nickname: String,
+}
+pub fn join(join_form: web::Json<JoinForm>, session: Session, pool: web::Data<Pool>)  -> impl Future<Item = HttpResponse, Error = ServiceError> {
     web::block(move || {
+        use crate::schema::users::dsl::*;
         let conn: &PgConnection = &pool.get().unwrap();
-
-		let user_id = {
-			use crate::schema::users::dsl::*;
-			diesel::insert_into(users)
-				.values(&new_user.into_inner())
-				.returning(id)
-				.get_result(conn)
-				.map_err(|_db_error| ServiceError::BadRequest("user does not exists".into()))?
-		};
-		let user = {
-			use crate::schema::users::dsl::*;
-			users
-				.select((id, nickname, mana, mana_updated_at)) 
-				.filter(userid.eq(data.userid).and(password.eq(data.password)))
-				.load::<User>(conn)
-				.map_err(|_db_error| ServiceError::InternalServerError)
-				.and_then(|mut result| result.pop().ok_or(ServiceError::BadRequest("user does not exists".into())))?
-		};
+        let join_form = join_form.into_inner();
+        let new_user = NewUser::new(join_form.userid, join_form.password, join_form.email, join_form.nickname);
+        diesel::insert_into(users)
+            .values(&new_user)
+            .returning(id)
+            .get_result(conn)
+            .map_err(|_db_error| ServiceError::BadRequest("user does not exists".into()))
     })
 	.from_err::<ServiceError>()
 	.and_then(move |inserted_id: i32| {
-		//session.set("id", inserted_id).map_err(|_| ServiceError::Unauthorized)?;
-		session.set("gamedata", GameData{).map_err(|_| ServiceError::Unauthorized)?;
+		session.set("id", inserted_id).map_err(|_| ServiceError::Unauthorized)?;
 		Ok(HttpResponse::Ok().finish())
 	})
 }
+
 
 
 #[derive(Serialize, Deserialize)]
@@ -81,7 +79,7 @@ pub fn login(data: web::Json<LoginData>, session: Session, pool: web::Data<Pool>
 		let user = {
 			use crate::schema::users::dsl::*;
 			users
-				.select((id, nickname, mana, mana_updated_at)) 
+				.select((id, nickname, mana, mana_charge_per_day, max_mana, summon_mana_cost, mana_updated_at)) 
 				.filter(userid.eq(data.userid).and(password.eq(data.password)))
 				.load::<User>(conn)
 				.map_err(|_db_error| ServiceError::InternalServerError)
@@ -98,24 +96,21 @@ pub fn login(data: web::Json<LoginData>, session: Session, pool: web::Data<Pool>
     })
 	.from_err::<ServiceError>()
     .and_then(move |gamedata| {
-		//session.set("id", gamedata.user.id).map_err(|_| ServiceError::Unauthorized)?;
-		session.set("gamedata", gamedata).map_err(|_| ServiceError::Unauthorized)?;
 		Ok(HttpResponse::Ok().json(gamedata))
 	})
 }
 
 pub fn reload_session(session: Session, pool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = ServiceError> {
-    let user_id = session.get("id").unwrap_or(None);
+    let user_id = session.get("id")
+        .map_err(|err| ServiceError::Unauthorized)
+        .and_then(|val| val.ok_or(ServiceError::Unauthorized));
     web::block(move || {
-        let user_id: i32 = match user_id {
-            Some(x) => x,
-            None=> return Err(ServiceError::Unauthorized),
-        };
+        let user_id: i32 = user_id?;
         let conn: &PgConnection = &pool.get().unwrap();
 		let user = {
 			use crate::schema::users::dsl::*;
 			users
-				.select((id, nickname, mana, mana_updated_at)) 
+				.select((id, nickname, mana, mana_charge_per_day, max_mana, summon_mana_cost, mana_updated_at)) 
 				.filter(id.eq(user_id))
 				.load::<User>(conn)
 				.map_err(|_db_error| ServiceError::InternalServerError)
@@ -132,7 +127,6 @@ pub fn reload_session(session: Session, pool: web::Data<Pool>) -> impl Future<It
     })
 	.from_err::<ServiceError>()
     .and_then(move |gamedata| {
-		session.set("id", gamedata.user.id).map_err(|_| ServiceError::Unauthorized)?;
 		Ok(HttpResponse::Ok().json(gamedata))
 	})
 }
@@ -142,35 +136,41 @@ pub fn logout(session: Session) -> Result<HttpResponse, ServiceError>{
     Ok(HttpResponse::Ok().finish())
 }
 
-pub fn create_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::Data<MqPool>) -> impl Future<Item = HttpResponse, Error = ServiceError> {
-    let user_id = session.get("id").unwrap_or(None);
-    //let data = session.get("").unwrap_or(None);
+pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::Data<MqPool>) -> impl Future<Item = HttpResponse, Error = ServiceError> {
+    let user_id = session.get("id")
+        .map_err(|err| ServiceError::Unauthorized)
+        .and_then(|val| val.ok_or(ServiceError::Unauthorized));
     web::block(move || {
-        use crate::schema::characters::dsl::*;
-        let user_id = match user_id {
-            Some(x) => x,
-            None=> return Err(ServiceError::Unauthorized),
-        };
+        let user_id: i32 = user_id?;
         let dbconn: &PgConnection = &dbpool.get().unwrap();
         let mqconn = &mut mqpool.get().unwrap();
-        let character = NewCharacter::gerneate_random_action_try(dbconn, user_id)?;
+        let character = NewCharacter::random(user_id);
         dbconn.transaction(|| {
+            use crate::schema::users::dsl::*;
+            let user = users.select((crate::schema::users::id, nickname, mana, mana_charge_per_day, max_mana, summon_mana_cost, mana_updated_at)).find(1).first::<User>(dbconn)
+                .map_err(|_db_error| ServiceError::InternalServerError)?;
+            let now = Utc::now().naive_utc();
+            let charged_mana = (user.mana_charge_per_day as f64 * ((now - user.mana_updated_at).num_milliseconds() as f64 / (1000*3600*24) as f64)) as i32;
+            let updated_mana = user.mana + charged_mana - user.summon_mana_cost;
+            if updated_mana < 0 {
+                return Err(ServiceError::NotEnoughMana);
+            }
+            diesel::update(&user).set((mana.eq(updated_mana), mana_updated_at.eq(now))).execute(dbconn)
+                .map_err(|_db_error| ServiceError::InternalServerError)?;
+            let seed_json = json!({
+                "seed": &character.seed,
+                "url": &character.url,
+            });
+            mqconn
+                .put(&seed_json.to_string(), 0, 0, 10)
+                .map_err(|_db_error| ServiceError::InternalServerError)?;
+            use crate::schema::characters::dsl::*;
             diesel::insert_into(characters)
                 .values(&character)
-                .execute(dbconn)
-                .map_err(Into::into)
-                //.map_err(|_db_error| ServiceError::InternalServerError)
-                .and_then(move |_| {
-                    let seed_json = json!({
-                        "seed": &character.seed,
-                        "url": &character.url,
-                    });
-                    mqconn
-                        .put(&seed_json.to_string(), 0, 0, 10)
-                        .map_err(Into::into)
-                })
+                .get_result::<Character>(dbconn)
+                .map_err(|_db_error| ServiceError::InternalServerError)
         })
     })
 	.from_err::<ServiceError>()
-	.and_then(move |res| Ok(HttpResponse::Ok().finish()))
+	.and_then(move |inserted_character| Ok(HttpResponse::Ok().json(inserted_character)))
 }

@@ -7,7 +7,7 @@ extern crate serde_derive;
 extern crate lazy_static;
 extern crate rand;
 extern crate r2d2_beanstalkd;
-extern crate base_62;
+extern crate base64;
 extern crate byteorder;
 
 
@@ -59,9 +59,14 @@ fn main() -> std::io::Result<()> {
             .service(
                 web::resource("/session")
                 .route(web::get().to_async(handlers::reload_session))
-                .route(web::put().to_async(handlers::login))
-                .route(web::post().to_async(handlers::join))
+                //.route(web::put().to_async(handlers::login))
+                .route(web::post().to_async(handlers::login))
                 .route(web::delete().to(handlers::logout))
+                )
+            .service(
+                web::resource("/accounts")
+                .route(web::post().to_async(handlers::join))
+                //.route(web::delete().to_async(handlers::remove_account))
                 )
             //.service(
                 //web::resource("/update")

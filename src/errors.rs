@@ -13,7 +13,7 @@ pub enum ServiceError {
     BadRequest(String),
     #[display(fmt = "Unauthorized")]
     Unauthorized,
-    Unexpired,
+    NotEnoughMana,
 }
 
 impl ResponseError for ServiceError {
@@ -23,8 +23,8 @@ impl ResponseError for ServiceError {
                 HttpResponse::InternalServerError().json("Internal Server Error, Please try later")
             }
             ServiceError::BadRequest(ref message) => HttpResponse::BadRequest().json(message),
+            ServiceError::NotEnoughMana => HttpResponse::BadRequest().json("Not enough mana"),
             ServiceError::Unauthorized => HttpResponse::Unauthorized().json("Unauthorized"),
-            ServiceError::Unexpired => HttpResponse::Conflict().json("Unexpired action"),
         }
     }
 }
