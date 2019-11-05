@@ -27,13 +27,6 @@ use chrono::prelude::*;
 
 pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
 
-const HEIGHT_MEAN:f64 = 160.0;
-const HEIGHT_VAR:f64 = 10.0;
-const STATS_NUM:i32 = 7;
-const STATS_MEAN:f64 = 5.0;
-const STATS_VAR:f64 = 5.0;
-const SEED_LEN: usize = 512;
-
 #[derive(Serialize, Deserialize)]
 pub struct GameData {
 	pub user: User,
