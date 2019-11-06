@@ -29,7 +29,9 @@ pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
 
 fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
-    std::env::set_var("RUST_LOG", "actix_web=info,actix_server=info");
+    std::env::set_var("RUST_LOG", "actix_web=debug,actix_server=debug,my_errors=debug");
+    //std::env::set_var("RUST_LOG", "my_errors=debug,actix_web=info");
+    std::env::set_var("RUST_BACKTRACE", "1");
     env_logger::init();
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
@@ -49,11 +51,14 @@ fn main() -> std::io::Result<()> {
         App::new()
             .data(pgpool.clone())
             .data(mqpool.clone())
+            .wrap(actix_cors::Cors::new()
+                  .allowed_origin("http://localhost:5000")
+            )
             .wrap(middleware::Logger::default())
             .wrap(CookieSession::signed(utils::SECRET_KEY.as_bytes())
-                    .domain(domain.as_str())
-                    .max_age_time(chrono::Duration::days(1))
-                    .secure(false)
+                 .domain(domain.as_str())
+                 .max_age_time(chrono::Duration::days(1))
+                 .secure(false)
             )
             .data(web::JsonConfig::default().limit(4096))
             .service(

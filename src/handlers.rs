@@ -34,7 +34,7 @@ pub struct GameData {
 }
 #[derive(Serialize, Deserialize)]
 pub struct JoinForm {
-    pub userid: String,
+    pub id: String,
     pub password: String,
     pub email: String,
     pub nickname: String,
@@ -44,16 +44,17 @@ pub fn join(join_form: web::Json<JoinForm>, session: Session, pool: web::Data<Po
         use crate::schema::users::dsl::*;
         let conn: &PgConnection = &pool.get().unwrap();
         let join_form = join_form.into_inner();
-        let new_user = NewUser::new(join_form.userid, join_form.password, join_form.email, join_form.nickname);
+        let new_user = NewUser::new(join_form.id, join_form.password, join_form.email, join_form.nickname);
+        let query = diesel::insert_into(users).values(&new_user);
+        let debug = diesel::debug_query::<diesel::pg::Pg, _>(&query);
+        println!("The insert query: {:?}", debug);
         diesel::insert_into(users)
             .values(&new_user)
-            .returning(id)
-            .get_result(conn)
+            .execute(conn)
             .map_err(|_db_error| ServiceError::BadRequest("user does not exists".into()))
     })
 	.from_err::<ServiceError>()
-	.and_then(move |inserted_id: i32| {
-		session.set("id", inserted_id).map_err(|_| ServiceError::Unauthorized)?;
+	.and_then(move |_| {
 		Ok(HttpResponse::Ok().finish())
 	})
 }

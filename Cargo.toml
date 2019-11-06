@@ -14,6 +14,7 @@ futures = "0.1"
 argonautica = "0.2.0"
 actix = "0.8.3"
 actix-web = { version = "1.0.0", features = ["ssl"] }
+actix-cors = "0.1.0"
 actix-session = "0.2.0"
 chrono = { version = "0.4.6", features = ["serde"] }
 diesel = { version = "1.4.2", features = ["postgres","uuidv07", "r2d2", "chrono"] }

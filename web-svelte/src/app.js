@@ -11,42 +11,60 @@ export class Application {
     reload_session(){
         return fetch(this.server_url + "/session", {
             method: 'get',
-            credentials: 'same-origin',
+            //credentials: 'same-origin',
         })
-        .then(res=>res.json());
+        .then(res=>{
+            if(res.status == 401)
+                throw new Error("No session found");
+            else if(res.status == 200)
+                return res.json();
+        });
     }
     login(id, password){
         return fetch(this.server_url + "/session", {
             method: 'post',
-            credentials: 'same-origin',
+            //credentials: 'same-origin',
             data:JSON.stringify({"id": id, "password": password}),
             headers:{
                 'Content-Type': 'application/json'
             }
         })
-        .then(res=>res.json());
+        .then(res=>{
+            if(res.status == 400)
+                throw new Error("Wrong ID or PASSWORD");
+            else if(res.status == 200)
+                return res.json();
+        });
     }
     logout(){
         return fetch(this.server_url + "/session", {
             method: 'delete',
-            credentials: 'same-origin',
+            //credentials: 'same-origin',
             headers:{
                 'Content-Type': 'application/json'
             }
-        })
+        });
     }
-    join(id, password, surname, email){
+    join(id, password, nickname, email){
         return fetch(this.server_url + "/accounts", {
             method: 'post',
-            credentials: 'same-origin',
+            //credentials: 'same-origin',
             data:JSON.stringify({
                 "id": id,
                 "password": password,
-                "surname": surname,
+                "nickname": nickname,
                 "email": email
             }),
             headers:{
                 'Content-Type': 'application/json'
+            }
+        })
+        .then(res=>{
+            if(res.status == 200)
+                return res.json();
+            else {
+                alert(res.status);
+                throw new Error("Wrong information");
             }
         });
     }
@@ -124,4 +142,4 @@ export class Application {
     };
     }
 };
-export const app = new Application("localhost:3000");
+export const app = new Application("http://localhost:3000");
