@@ -8,10 +8,10 @@ edition = "2018"
 
 [dependencies]
 env_logger = "0.6"
-lazy_static = "1.3.0"
-derive_more = "0.15.0"
+# lazy_static = "1.3.0"
+# derive_more = "0.15.0"
 futures = "0.1"
-argonautica = "0.2.0"
+bcrypt = "0.6"
 actix = "0.8.3"
 actix-web = { version = "1.0.0", features = ["ssl"] }
 actix-cors = "0.1.0"

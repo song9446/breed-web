@@ -39,7 +39,7 @@ function add_characters(character_list){
         else
             root = ch;
     }
-    while(root.matherid || root.fatherid){
+    while(root && (root.matherid || root.fatherid)){
         if(root.matherid)
             root = characters[root.matherid];
         else

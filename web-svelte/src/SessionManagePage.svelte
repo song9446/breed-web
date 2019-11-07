@@ -10,12 +10,18 @@ function login(){
     let id = document.getElementById("loginbox-id").value,
         pw = document.getElementById("loginbox-pw").value;
     app.login(id, pw)
-    .then(res => dispatch('logined', {
-        gamedata: res
-    }))
+    .then(res => {
+        if(res.error)
+            alert(res.error.message);
+        else {
+            return dispatch('logined', {
+                gamedata: res.data,
+            });
+        }
+    })
     .catch(res => alert(res));
 }
-function join_form(){
+function join_form_open(){
     state = "join";
 }
 function join(){
@@ -25,12 +31,25 @@ function join(){
         surname = document.getElementById("loginbox-surname").value;
     app.join(id, pw, surname, email)
     .then(res => {
-        alert("thank you for join us!");
-        state = "login"
+        if(res.error)
+            alert(res.error.message);
+        else {
+            alert("thank you for join us!");
+            state = "login"
+        }
     })
     .catch(res => alert(res));
 }
-app.reload_session().then(res => dispatch('logined'));
+app.reload_session()
+    .then(res => {
+        if(res.error)
+            console.log(res.error.message);
+        else {
+            return dispatch('logined', {
+                gamedata: res.data,
+            });
+        }
+    });
 
 </script>
 
@@ -84,7 +103,7 @@ label {
 
     {#if state == "login"}
     <button on:click={login}>Login</button>
-    <button on:click={join_form}>Join</button>
+    <button on:click={join_form_open}>Join</button>
     {/if}
     {#if state == "join"}
     <div>

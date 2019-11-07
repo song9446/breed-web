@@ -11,8 +11,8 @@ extern crate base64;
 extern crate byteorder;
 
 
-use actix_session::{Session, CookieSession};
-use actix_web::{middleware, web, App, HttpServer};
+use actix_session::{CookieSession};
+use actix_web::{middleware, web, App, HttpServer,};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use r2d2_beanstalkd::BeanstalkdConnectionManager;
@@ -20,19 +20,17 @@ use r2d2_beanstalkd::BeanstalkdConnectionManager;
 
 mod schema;
 mod models;
-mod errors;
-mod utils;
 mod names;
 mod handlers;
+mod response;
 
 pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
 
+
 fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
-    std::env::set_var("RUST_LOG", "actix_web=debug,actix_server=debug,my_errors=debug");
-    //std::env::set_var("RUST_LOG", "my_errors=debug,actix_web=info");
-    std::env::set_var("RUST_BACKTRACE", "1");
     env_logger::init();
+	let secret_key = std::env::var("SECRET_KEY").unwrap_or("0123".repeat(8));
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     let pgpool: models::Pool = r2d2::Pool::builder()
@@ -44,7 +42,8 @@ fn main() -> std::io::Result<()> {
     let mqpool: MqPool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create mq pool.");
-    let domain: String = std::env::var("DOMAIN").unwrap_or_else(|_| "localhost".to_string());
+    let domain = std::env::var("DOMAIN").expect("DOMAIN must be set");
+    let domain_for_cookiesession = domain.clone();
 
     // Start http server
     HttpServer::new(move || {
@@ -52,11 +51,11 @@ fn main() -> std::io::Result<()> {
             .data(pgpool.clone())
             .data(mqpool.clone())
             .wrap(actix_cors::Cors::new()
-                  .allowed_origin("http://localhost:5000")
+                  .allowed_origin("http://127.0.0.1:5000")
             )
             .wrap(middleware::Logger::default())
-            .wrap(CookieSession::signed(utils::SECRET_KEY.as_bytes())
-                 .domain(domain.as_str())
+            .wrap(CookieSession::signed(secret_key.as_bytes())
+                 .domain(domain_for_cookiesession.as_str())
                  .max_age_time(chrono::Duration::days(1))
                  .secure(false)
             )
@@ -79,6 +78,6 @@ fn main() -> std::io::Result<()> {
                 //.route(web::post().to_async(handlers::update))
             //    )
     })
-    .bind("127.0.0.1:3000")?
+    .bind(domain)?
     .run()
 }

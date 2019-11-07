@@ -1,9 +1,7 @@
 use rand::prelude::*;
 use rand::distributions::StandardNormal;
 
-use chrono::prelude::*;
-
-use crate::errors::ServiceError;
+use crate::response::ErrorResponse;
 
 use crate::byteorder::ByteOrder;
 
@@ -24,9 +22,31 @@ pub const SUMMON_MANA_COST:i32 = 3333;
 pub const MAX_MANA:i32 = 10000;
 pub const MANA_CHARGE_PER_DAY:i32 = 10000;
 pub const RANDOM_CHARACTER_GEN_ACTION_ID: i32 = 1;
-lazy_static!{
-}
 
+#[derive(Serialize, Deserialize, Queryable)]
+pub struct UserWithPassword {
+    pub password: String,
+    pub id: i32,
+    pub nickname: String,
+	pub mana: i32,
+    pub mana_charge_per_day: i32,
+    pub max_mana: i32,
+    pub summon_mana_cost: i32,
+    pub mana_updated_at: chrono::NaiveDateTime,
+}
+impl UserWithPassword {
+	pub fn without_password(self) -> User {
+		User{
+			id: self.id,
+			nickname: self.nickname,
+			mana: self.mana,
+			mana_charge_per_day: self.mana_charge_per_day,
+			max_mana: self.max_mana,
+			summon_mana_cost: self.summon_mana_cost,
+			mana_updated_at: self.mana_updated_at,
+		}
+	}
+}
 #[derive(Serialize, Deserialize, Queryable, Identifiable, Associations)]
 pub struct User {
     pub id: i32,
@@ -37,7 +57,6 @@ pub struct User {
     pub summon_mana_cost: i32,
     pub mana_updated_at: chrono::NaiveDateTime,
 }
-
 #[derive(Serialize, Deserialize, Insertable)]
 #[table_name = "users"]
 pub struct NewUser {
@@ -50,16 +69,16 @@ pub struct NewUser {
     pub summon_mana_cost: i32,
 }
 impl NewUser {
-    pub fn new(userid: String, password: String, email: String, nickname: String) -> Self {
-        NewUser {
+    pub fn new(userid: String, plain_password: String, email: String, nickname: String) -> Result<Self, bcrypt::BcryptError> {
+        Ok(NewUser {
             userid: userid,
-            password: password,
+            password: bcrypt::hash(&plain_password, bcrypt::DEFAULT_COST)?,
             email: email,
             nickname: nickname,
             mana_charge_per_day: MANA_CHARGE_PER_DAY,
             max_mana: MAX_MANA,
             summon_mana_cost: SUMMON_MANA_COST,
-        }
+        })
     }
 }
 
@@ -118,7 +137,7 @@ impl NewCharacter {
         self.fatherid = Some(fatherid); 
         self
     }
-    pub fn synthesize(dbconn: &PgConnection, owner_id:i32, mather_id: i32, father_id: i32) -> Result<NewCharacter, ServiceError>  {
+    pub fn synthesize(dbconn: &PgConnection, owner_id:i32, mather_id: i32, father_id: i32) -> Result<NewCharacter, ErrorResponse>  {
         use crate::schema::characters::dsl::*;
         let mut rng = rand::thread_rng();
         let seed1:Vec<f64> = characters

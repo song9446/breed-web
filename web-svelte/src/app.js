@@ -13,28 +13,18 @@ export class Application {
             method: 'get',
             //credentials: 'same-origin',
         })
-        .then(res=>{
-            if(res.status == 401)
-                throw new Error("No session found");
-            else if(res.status == 200)
-                return res.json();
-        });
+        .then(res=>res.json());
     }
     login(id, password){
         return fetch(this.server_url + "/session", {
             method: 'post',
             //credentials: 'same-origin',
-            data:JSON.stringify({"id": id, "password": password}),
+            body:JSON.stringify({"id": id, "password": password}),
             headers:{
                 'Content-Type': 'application/json'
             }
         })
-        .then(res=>{
-            if(res.status == 400)
-                throw new Error("Wrong ID or PASSWORD");
-            else if(res.status == 200)
-                return res.json();
-        });
+        .then(res=>res.json());
     }
     logout(){
         return fetch(this.server_url + "/session", {
@@ -43,13 +33,14 @@ export class Application {
             headers:{
                 'Content-Type': 'application/json'
             }
-        });
+        })
+        .then(res=>res.json());
     }
     join(id, password, nickname, email){
         return fetch(this.server_url + "/accounts", {
             method: 'post',
             //credentials: 'same-origin',
-            data:JSON.stringify({
+            body:JSON.stringify({
                 "id": id,
                 "password": password,
                 "nickname": nickname,
@@ -59,14 +50,7 @@ export class Application {
                 'Content-Type': 'application/json'
             }
         })
-        .then(res=>{
-            if(res.status == 200)
-                return res.json();
-            else {
-                alert(res.status);
-                throw new Error("Wrong information");
-            }
-        });
+        .then(res=>res.json());
     }
     dummy_gamedata(){
         return {
@@ -142,4 +126,4 @@ export class Application {
     };
     }
 };
-export const app = new Application("http://localhost:3000");
+export const app = new Application("http://127.0.0.1:3000");
