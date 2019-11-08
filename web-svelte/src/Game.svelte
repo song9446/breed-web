@@ -13,6 +13,10 @@ $: if(gamedata) {
     add_characters(gamedata.characters);
 }
 
+function create_character() {
+    app.create_character();
+}
+
 function add_characters(character_list){
     let root = null;
     console.log(character_list);

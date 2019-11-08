@@ -52,6 +52,12 @@ export class Application {
         })
         .then(res=>res.json());
     }
+    update_mana(user) {
+        user.mana_per_day
+        let charged_mana = (user.mana_charge_per_day * ((now - new Date(user.mana_updated_at)).num_milliseconds() as f64 / (1000*3600*24) as f64)) as i32;
+    }
+    create_character(game_data) {
+    }
     dummy_gamedata(){
         return {
             user:{

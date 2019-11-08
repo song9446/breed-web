@@ -3,7 +3,6 @@
 extern crate diesel;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
 extern crate lazy_static;
 extern crate rand;
 extern crate r2d2_beanstalkd;
@@ -42,6 +41,7 @@ fn main() -> std::io::Result<()> {
     let mqpool: MqPool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create mq pool.");
+    let front_url = std::env::var("FRONT_URL").expect("FRONT_URL must be set");
     let domain = std::env::var("DOMAIN").expect("DOMAIN must be set");
     let domain_for_cookiesession = domain.clone();
 
@@ -51,7 +51,7 @@ fn main() -> std::io::Result<()> {
             .data(pgpool.clone())
             .data(mqpool.clone())
             .wrap(actix_cors::Cors::new()
-                  .allowed_origin("http://127.0.0.1:5000")
+                  .allowed_origin(front_url.as_str())
             )
             .wrap(middleware::Logger::default())
             .wrap(CookieSession::signed(secret_key.as_bytes())
