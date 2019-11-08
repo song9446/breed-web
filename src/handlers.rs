@@ -160,7 +160,7 @@ pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::
 				})?;
             let now = Utc::now().naive_utc();
             let charged_mana = (user.mana_charge_per_day as f64 * ((now - user.mana_updated_at).num_milliseconds() as f64 / (1000*3600*24) as f64)) as i32;
-            let updated_mana = user.mana + charged_mana - user.summon_mana_cost;
+            let updated_mana = core::cmp::min(user.mana + charged_mana, user.max_mana) - user.summon_mana_cost;
             if updated_mana < 0 {
                 return Err(Response::bad_request("not enough mana"));
             }

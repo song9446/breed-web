@@ -1,6 +1,10 @@
 export class Application {
     constructor(server_url){
         this.server_url = server_url;
+        this._gamedata = null;
+    }
+    gamedata(){
+        return this._gamedata;
     }
 	update(){
         return fetch(this.server_url + "/update", {
@@ -13,7 +17,8 @@ export class Application {
             method: 'get',
             //credentials: 'same-origin',
         })
-        .then(res=>res.json());
+        .then(res=>res.json())
+        .then(res=>this._gamedata = res);
     }
     login(id, password){
         return fetch(this.server_url + "/session", {
@@ -34,7 +39,8 @@ export class Application {
                 'Content-Type': 'application/json'
             }
         })
-        .then(res=>res.json());
+        .then(res=>res.json())
+        .then(res=>this._gamedata = res);
     }
     join(id, password, nickname, email){
         return fetch(this.server_url + "/accounts", {
@@ -52,12 +58,17 @@ export class Application {
         })
         .then(res=>res.json());
     }
-    update_mana(user) {
+    update_mana() {
+        let user = this._gamedata.user.mana;
         let charged_mana = user.mana_charge_per_day * ((Date.now() - new Date(user.mana_updated_at)).getTime() / (1000*3600*24));
-        return Math.max(charged_mana, user.max_mana);
+        let new_mana = Math.min(user.mana + charged_mana, user.max_mana);
+        user.mana = Math.min(charged_mana, user.max_mana);
+        return user.mana;
     }
-    create_character(game_data) {
-        if 
+    summon_character() {
+        let user = this._gamedata.user.mana;
+        if(update_mana() - user.summon_mana_cost < 0)
+            return Promise.reject();
         return fetch(this.server_url + "/characters", {
             method: 'post',
             //credentials: 'same-origin',
@@ -65,7 +76,11 @@ export class Application {
                 'Content-Type': 'application/json'
             }
         })
-        .then(res=>res.json());
+        .then(res=>res.json())
+        .then(res=>{
+            user.mana -= user.summom_mana_cost;
+            return res;
+        })
     }
     dummy_gamedata(){
         return {

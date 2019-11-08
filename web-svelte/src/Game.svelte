@@ -13,8 +13,10 @@ $: if(gamedata) {
     add_characters(gamedata.characters);
 }
 
-function create_character() {
-    app.create_character();
+function summon_character() {
+    app.create_character()
+    .then(res=>add_characters([res.data]))
+    .catch(res=>alert(res));
 }
 
 function add_characters(character_list){
