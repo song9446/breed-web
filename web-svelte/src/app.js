@@ -53,10 +53,19 @@ export class Application {
         .then(res=>res.json());
     }
     update_mana(user) {
-        user.mana_per_day
-        let charged_mana = (user.mana_charge_per_day * ((now - new Date(user.mana_updated_at)).num_milliseconds() as f64 / (1000*3600*24) as f64)) as i32;
+        let charged_mana = user.mana_charge_per_day * ((Date.now() - new Date(user.mana_updated_at)).getTime() / (1000*3600*24));
+        return Math.max(charged_mana, user.max_mana);
     }
     create_character(game_data) {
+        if 
+        return fetch(this.server_url + "/characters", {
+            method: 'post',
+            //credentials: 'same-origin',
+            headers:{
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res=>res.json());
     }
     dummy_gamedata(){
         return {
