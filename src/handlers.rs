@@ -174,10 +174,14 @@ pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::
                 .put(&seed_json.to_string(), 0, 0, 10)
 				.map_err(|_| Response::internal_server_error(""))?;
             use crate::schema::characters::dsl::*;
-            diesel::insert_into(characters)
+            let inserted_character = diesel::insert_into(characters)
                 .values(&character)
                 .get_result::<Character>(dbconn)
 				.map_err(|_| Response::internal_server_error(""))
+            struct GameData {
+                pub user_mana: User,
+                pub new_character: Character,
+            }
         })
     })
 	.from_err::<ErrorResponse>()

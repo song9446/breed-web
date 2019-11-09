@@ -13,9 +13,16 @@ $: if(gamedata) {
     add_characters(gamedata.characters);
 }
 
+function sync_user_data() {
+    gmaedata.user = app.gamedata().user;
+}
 function summon_character() {
-    app.create_character()
-    .then(res=>add_characters([res.data]))
+    app.summon_character()
+    .then(res=>{
+        console.log(res.data);
+        sync_user_data();
+        add_characters([res.data]);
+    })
     .catch(res=>alert(res));
 }
 
@@ -61,7 +68,8 @@ function add_characters(character_list){
 div.container {
     display: grid;
     grid-template-areas:
-        'events family strangers';
+        'events family strangers'
+        'menu menu menu';
     grid-template-columns: min-content 1fr min-content;
     background-color: white;
 }
@@ -76,6 +84,16 @@ section.family {
 section.strangers {
     text-align: center;
     grid-area: strangers;
+}
+section menu {
+    grid-area: summon_button;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+section other {
+    text-align: center;
+    grid-area: summon_button
 }
 .strangers ul{
   list-style-type: none;
@@ -112,5 +130,11 @@ section.strangers {
         </li>
         {/each}
     </ul>
+</section>
+<section class="menu">
+    <div></div>
+    <div class="summon-button-container">
+        <button class="summon-button" on:click={summon_character}>소환</button>
+    </div>
 </section>
 </div>

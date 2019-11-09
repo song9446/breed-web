@@ -1,7 +1,6 @@
 export class Application {
     constructor(server_url){
         this.server_url = server_url;
-        this._gamedata = null;
     }
     gamedata(){
         return this._gamedata;
@@ -18,7 +17,6 @@ export class Application {
             //credentials: 'same-origin',
         })
         .then(res=>res.json())
-        .then(res=>this._gamedata = res);
     }
     login(id, password){
         return fetch(this.server_url + "/session", {
@@ -29,7 +27,7 @@ export class Application {
                 'Content-Type': 'application/json'
             }
         })
-        .then(res=>res.json());
+        .then(res=>res.json())
     }
     logout(){
         return fetch(this.server_url + "/session", {
@@ -40,7 +38,6 @@ export class Application {
             }
         })
         .then(res=>res.json())
-        .then(res=>this._gamedata = res);
     }
     join(id, password, nickname, email){
         return fetch(this.server_url + "/accounts", {
@@ -58,16 +55,13 @@ export class Application {
         })
         .then(res=>res.json());
     }
-    update_mana() {
-        let user = this._gamedata.user.mana;
+    update_mana(user) {
         let charged_mana = user.mana_charge_per_day * ((Date.now() - new Date(user.mana_updated_at)).getTime() / (1000*3600*24));
         let new_mana = Math.min(user.mana + charged_mana, user.max_mana);
-        user.mana = Math.min(charged_mana, user.max_mana);
-        return user.mana;
+        return {"mana": Math.min(charged_mana, user.max_mana)}
     }
-    summon_character() {
-        let user = this._gamedata.user.mana;
-        if(update_mana() - user.summon_mana_cost < 0)
+    summon_character(user) {
+        if(update_mana().mana - user.summon_mana_cost < 0)
             return Promise.reject();
         return fetch(this.server_url + "/characters", {
             method: 'post',
