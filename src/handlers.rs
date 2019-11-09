@@ -10,7 +10,7 @@ use futures::Future;
 use actix_web::{web, HttpResponse};
 //use futures::Future;
 
-use crate::models::{NewUser, User, UserWithPassword, Pool, Character, NewCharacter};
+use crate::models::{NewUser, User, UserWithPassword, UserManaUpdated, Pool, Character, NewCharacter};
 
 use actix_session::Session;
 
@@ -139,6 +139,11 @@ pub fn logout(session: Session) -> Result<HttpResponse, ErrorResponse>{
 	Ok(Response::ok(()))
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct SummonData {
+	pub user: UserManaUpdated,
+	pub character: Character,
+}
 pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::Data<MqPool>) -> impl Future<Item = HttpResponse, Error = ErrorResponse> {
     let user_id = session.get("id")
         .map_err(|_| Response::unauthorized(""))
@@ -164,7 +169,8 @@ pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::
             if updated_mana < 0 {
                 return Err(Response::bad_request("not enough mana"));
             }
-            diesel::update(&user).set((mana.eq(updated_mana), mana_updated_at.eq(now))).execute(dbconn)
+            let user_mana_updated = UserManaUpdated{ mana: updated_mana, mana_updated_at: now };
+            diesel::update(&user).set(&user_mana_updated).execute(dbconn)
 				.map_err(|_| Response::internal_server_error(""))?;
             let seed_json = json!({
                 "seed": &character.seed,
@@ -177,14 +183,14 @@ pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::
             let inserted_character = diesel::insert_into(characters)
                 .values(&character)
                 .get_result::<Character>(dbconn)
-				.map_err(|_| Response::internal_server_error(""))
-            struct GameData {
-                pub user_mana: User,
-                pub new_character: Character,
-            }
+				.map_err(|_| Response::internal_server_error(""))?;
+            Ok(SummonData {
+                user: user_mana_updated,
+                character: inserted_character,
+            })
         })
     })
 	.from_err::<ErrorResponse>()
-	.and_then(|inserted_character| Ok(Response::ok(inserted_character)))
+	.and_then(|summon_data| Ok(Response::ok(summon_data)))
 
 }

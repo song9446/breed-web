@@ -81,6 +81,12 @@ impl NewUser {
         })
     }
 }
+#[derive(Serialize, Deserialize, AsChangeset)]
+#[table_name = "users"]
+pub struct UserManaUpdated {
+    pub mana: i32,
+    pub mana_updated_at: chrono::NaiveDateTime,
+}
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug)]
