@@ -14,9 +14,7 @@ function login(){
         if(res.error)
             alert(res.error.message);
         else {
-            return dispatch('logined', {
-                gamedata: res.data,
-            });
+            return dispatch('logined', res.data);
         }
     })
     .catch(res => alert(res));

@@ -62,7 +62,7 @@ export class Application {
     }
     summon_character(user) {
         if(update_mana().mana - user.summon_mana_cost < 0)
-            return Promise.reject();
+            return Promise.reject({"error": {code:401, message:"Not enough mana"}});
         return fetch(this.server_url + "/characters", {
             method: 'post',
             //credentials: 'same-origin',
@@ -71,10 +71,6 @@ export class Application {
             }
         })
         .then(res=>res.json())
-        .then(res=>{
-            user.mana -= user.summom_mana_cost;
-            return res;
-        })
     }
     dummy_gamedata(){
         return {

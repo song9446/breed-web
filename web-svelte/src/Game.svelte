@@ -2,26 +2,32 @@
 import Character from './Character.svelte';
 import { app } from './app.js';
 
-export let gamedata = null;
-let characters = {};
+export let characters
+export let user = {};
+let characters_dict = {};
 let strangers = [];
 let family_tree_root = null;
 let events = [];
 
-$: if(gamedata) {
-    console.log(gamedata);
+$: if(characters) {
     add_characters(gamedata.characters);
 }
 
-function sync_user_data() {
-    gmaedata.user = app.gamedata().user;
-}
+setInterval(()=>{
+    let user_mana_updated = app.update_mana();
+    user.mana = user_mana_updated.mana;
+}, 100)
+
 function summon_character() {
     app.summon_character()
     .then(res=>{
-        console.log(res.data);
-        sync_user_data();
-        add_characters([res.data]);
+        if(res.error)
+            alert(res.error.message);
+        else {
+            console.log(res.data);
+            add_characters([res.data.character]);
+            user.mana = res.data.user.mana;
+        }
     })
     .catch(res=>alert(res));
 }
@@ -30,20 +36,20 @@ function add_characters(character_list){
     let root = null;
     console.log(character_list);
     for(let ch of character_list){
-        characters[ch.id] = ch;
+        characters_dict[ch.id] = ch;
         ch["children"] = [];
     }
     for(let ch of character_list){
         // only mather has children(for simplicity)
         if(ch.matherid){
-            characters[ch.matherid]["children"].push(ch);
-            ch.mather = characters[ch.matherid];
+            characters_dict[ch.matherid]["children"].push(ch);
+            ch.mather = characters_dict[ch.matherid];
         }
         if(ch.fatherid)
-            ch.father = characters[ch.fatherid];
+            ch.father = characters_dict[ch.fatherid];
         if(ch.partnerid){
-            ch.husband = characters[ch.partnerid];
-            characters[ch.partnerid]["wife"] = ch;
+            ch.husband = characters_dict[ch.partnerid];
+            characters_dict[ch.partnerid]["wife"] = ch;
         }
     }
     for(let ch of character_list){
@@ -54,9 +60,9 @@ function add_characters(character_list){
     }
     while(root && (root.matherid || root.fatherid)){
         if(root.matherid)
-            root = characters[root.matherid];
+            root = characters_dict[root.matherid];
         else
-            root = characters[root.fatherid];
+            root = characters_dict[root.fatherid];
     }
     family_tree_root = root;
 }
@@ -90,6 +96,7 @@ section menu {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-direction: horizontal;
 }
 section other {
     text-align: center;
@@ -135,6 +142,10 @@ section other {
     <div></div>
     <div class="summon-button-container">
         <button class="summon-button" on:click={summon_character}>소환</button>
+    </div>
+    <div class="user-mana-container">
+        <div class="user-mana"> {user.mana} </div>
+        <div class="user-summon-mana-cost"> {user.summon_mana_cost} </div>
     </div>
 </section>
 </div>

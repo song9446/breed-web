@@ -4,10 +4,12 @@ import SessionManagePage from './SessionManagePage.svelte';
 import { app } from './app.js';
 
 let logined = false;
-let gamedata = null;
+let user = null;
+let characters = null;
 
 function login(e){
-    gamedata = e.detail.gamedata;
+    user = e.detail.user;
+    characters = e.detail.characters;
     logined = true;
 }
 
@@ -15,7 +17,7 @@ function login(e){
 
 
 {#if logined }
-<Game gamedata={gamedata}/>
+<Game user={user} characters={characters}/>
 {:else}
 <SessionManagePage on:logined={login}/>
 {/if}
