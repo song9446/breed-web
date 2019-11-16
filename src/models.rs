@@ -21,7 +21,7 @@ pub const SEED_LEN: usize = 512;
 pub const SUMMON_MANA_COST:i32 = 3333;
 pub const MAX_MANA:i32 = 10000;
 pub const MANA_CHARGE_PER_DAY:i32 = 10000;
-pub const RANDOM_CHARACTER_GEN_ACTION_ID: i32 = 1;
+//pub const RANDOM_CHARACTER_GEN_ACTION_ID: i32 = 1;
 
 #[derive(Serialize, Deserialize, Queryable)]
 pub struct UserWithPassword {
@@ -72,7 +72,7 @@ impl NewUser {
     pub fn new(userid: String, plain_password: String, email: String, nickname: String) -> Result<Self, bcrypt::BcryptError> {
         Ok(NewUser {
             userid: userid,
-            password: bcrypt::hash(&plain_password, bcrypt::DEFAULT_COST)?,
+            password: bcrypt::hash(&plain_password, 6)?,//bcrypt::DEFAULT_COST)?,
             email: email,
             nickname: nickname,
             mana_charge_per_day: MANA_CHARGE_PER_DAY,
@@ -98,13 +98,46 @@ pub struct Character {
     pub fatherid: Option<i32>,
     pub ownerid: Option<i32>,
     pub seed: Vec<f64>,
-    pub url: String,
     pub jobid: Option<i32>,
     pub height: f64,
     pub created_at: chrono::NaiveDateTime,
     pub stats: Vec<i32>,
-    pub stateid: i32,
+    //pub stateid: i32,
     //pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug)]
+#[table_name = "characters"]
+pub struct CharacterWithoutSeed {
+    pub id: i32,
+    pub firstname: String,
+    pub surname: Option<String>,
+    pub matherid: Option<i32>,
+    pub fatherid: Option<i32>,
+    pub ownerid: Option<i32>,
+    pub jobid: Option<i32>,
+    pub height: f64,
+    pub created_at: chrono::NaiveDateTime,
+    pub stats: Vec<i32>,
+    //pub stateid: i32,
+    //pub created_at: chrono::DateTime<chrono::Utc>,
+}
+impl From<Character> for CharacterWithoutSeed {
+    fn from(c: Character) -> Self {
+        CharacterWithoutSeed {
+            id: c.id,
+            firstname: c.firstname,
+            surname: c.surname,
+            matherid: c.matherid,
+            fatherid: c.fatherid,
+            ownerid: c.ownerid,
+            jobid: c.jobid,
+            height: c.height,
+            created_at: c.created_at,
+            stats: c.stats,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Insertable)]
@@ -115,21 +148,17 @@ pub struct NewCharacter {
     pub fatherid: Option<i32>,
     pub ownerid: Option<i32>,
     pub seed: Vec<f64>,
-    pub url: String,
     pub height: f64,
     pub stats: Vec<i32>,
 }
 impl NewCharacter {
     fn new(seed: Vec<f64>) -> NewCharacter {
-        let mut seed_bytes = [0; SEED_LEN*8];
-        byteorder::LittleEndian::write_f64_into(&seed, &mut seed_bytes);
         NewCharacter {
             firstname: crate::names::gen().to_string(),
             matherid:None,
             fatherid:None,
             ownerid:None,
             seed,
-            url: base64::encode_config(&seed_bytes[..], base64::URL_SAFE),
             height: SmallRng::from_entropy().sample(StandardNormal)*HEIGHT_VAR+HEIGHT_MEAN,
             stats: (0..STATS_NUM).map(|_| (SmallRng::from_entropy().sample(StandardNormal)*STATS_VAR + STATS_MEAN) as i32).collect::<Vec<i32>>(),
         }

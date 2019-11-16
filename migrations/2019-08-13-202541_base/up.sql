@@ -20,11 +20,11 @@ CREATE TABLE jobs (
     factors INTEGER[6]
 );
 
-CREATE TABLE states (
+/*CREATE TABLE states (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT NOT NULL
-);
+);*/
 
 CREATE TABLE characters (
     id SERIAL PRIMARY KEY,
@@ -34,12 +34,12 @@ CREATE TABLE characters (
     fatherid INTEGER REFERENCES characters (id),
     ownerid INTEGER REFERENCES users (id),
     seed FLOAT[] NOT NULL,
-    url TEXT NOT NULL,
+    /*url TEXT NOT NULL,*/
     jobid INTEGER REFERENCES jobs (id),
     height FLOAT NOT NULL DEFAULT 160.0,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    stats INTEGER[6] NOT NULL,
-    stateid INTEGER NOT NULL DEFAULT 0 REFERENCES states (id)
+    stats INTEGER[6] NOT NULL
+    /*stateid INTEGER NOT NULL DEFAULT 0 REFERENCES states (id)*/
 );
 CREATE INDEX characters_ownerid_idx ON characters (ownerid);
 CREATE INDEX characters_materid_idx ON characters (matherid);

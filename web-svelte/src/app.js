@@ -1,12 +1,17 @@
 export class Application {
-    constructor(server_url){
+    constructor(server_url, image_server_url){
         this.server_url = server_url;
+        this.image_server_url = image_server_url;
     }
     gamedata(){
         return this._gamedata;
     }
+    character_image_url(ch){
+        return this.image_server_url + "/" + ch.id + ".png"
+    }
 	update(){
         return fetch(this.server_url + "/update", {
+            credentials: 'include',
 		})
 		.then(res => {
 		});
@@ -14,14 +19,17 @@ export class Application {
     reload_session(){
         return fetch(this.server_url + "/session", {
             method: 'get',
-            //credentials: 'same-origin',
+            credentials: 'include',
+            headers:{
+                'Content-Type': 'application/json'
+            }
         })
         .then(res=>res.json())
     }
     login(id, password){
         return fetch(this.server_url + "/session", {
             method: 'post',
-            //credentials: 'same-origin',
+            credentials: 'include',
             body:JSON.stringify({"id": id, "password": password}),
             headers:{
                 'Content-Type': 'application/json'
@@ -32,7 +40,7 @@ export class Application {
     logout(){
         return fetch(this.server_url + "/session", {
             method: 'delete',
-            //credentials: 'same-origin',
+            credentials: 'include',
             headers:{
                 'Content-Type': 'application/json'
             }
@@ -42,7 +50,7 @@ export class Application {
     join(id, password, nickname, email){
         return fetch(this.server_url + "/accounts", {
             method: 'post',
-            //credentials: 'same-origin',
+            credentials: 'include',
             body:JSON.stringify({
                 "id": id,
                 "password": password,
@@ -56,16 +64,19 @@ export class Application {
         .then(res=>res.json());
     }
     update_mana(user) {
-        let charged_mana = user.mana_charge_per_day * ((Date.now() - new Date(user.mana_updated_at)).getTime() / (1000*3600*24));
+        let now = new Date();
+        let charged_mana = 
+            user.mana_charge_per_day * 
+            ((now.getTime() - (new Date(user.mana_updated_at + (user.mana_updated_at.endsWith("Z")? "": "Z"))).getTime()) / (1000*3600*24));
         let new_mana = Math.min(user.mana + charged_mana, user.max_mana);
-        return {"mana": Math.min(charged_mana, user.max_mana)}
+        return {"mana": new_mana, "mana_updated_at": now.toISOString()};
     }
     summon_character(user) {
-        if(update_mana().mana - user.summon_mana_cost < 0)
+        if(this.update_mana(user).mana - user.summon_mana_cost < 0)
             return Promise.reject({"error": {code:401, message:"Not enough mana"}});
         return fetch(this.server_url + "/characters", {
             method: 'post',
-            //credentials: 'same-origin',
+            credentials: 'include',
             headers:{
                 'Content-Type': 'application/json'
             }
@@ -146,4 +157,4 @@ export class Application {
     };
     }
 };
-export const app = new Application("http://127.0.0.1:3000");
+export const app = new Application("http://127.0.0.1:3000", "http://127.0.0.1:8000");

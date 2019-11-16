@@ -1,5 +1,6 @@
 use serde::ser::{Serialize};
 use actix_web::{error::{ResponseError, BlockingError}, HttpResponse};
+use r2d2_beanstalkd::Error as BeanstalkdError;
 use std::fmt;
 
 #[allow(non_snake_case, non_camel_case_types)]
@@ -77,6 +78,12 @@ impl From<BlockingError<ErrorResponse>> for ErrorResponse {
 
 impl<T: Serialize> From<diesel::result::Error> for Response<T> {
     fn from(_: diesel::result::Error) -> Response<T> {
+		Response::internal_server_error("")
+	}
+}
+
+impl<T: Serialize> From<BeanstalkdError> for Response<T> {
+    fn from(_: BeanstalkdError) -> Response<T> {
 		Response::internal_server_error("")
 	}
 }

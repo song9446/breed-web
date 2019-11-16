@@ -10,16 +10,17 @@ let family_tree_root = null;
 let events = [];
 
 $: if(characters) {
-    add_characters(gamedata.characters);
+    add_characters(characters);
 }
 
 setInterval(()=>{
-    let user_mana_updated = app.update_mana();
+    let user_mana_updated = app.update_mana(user);
     user.mana = user_mana_updated.mana;
+    user.mana_updated_at = user_mana_updated.mana_updated_at;
 }, 100)
 
 function summon_character() {
-    app.summon_character()
+    app.summon_character(user)
     .then(res=>{
         if(res.error)
             alert(res.error.message);
@@ -27,6 +28,7 @@ function summon_character() {
             console.log(res.data);
             add_characters([res.data.character]);
             user.mana = res.data.user.mana;
+            user.mana_updated_at = res.data.user.updated_at;
         }
     })
     .catch(res=>alert(res));

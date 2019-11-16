@@ -1,5 +1,6 @@
 <script context="module">
 import { writable } from 'svelte/store';
+import { app } from './app.js';
 const character_element_id_prefix = "character";
 const couple_element_id_prefix = "couple";
 const path_element_id_prefix = "path";
@@ -212,9 +213,9 @@ path.highlight {
         <li>
             <Draggable>
                 <ul class="character-properties" id="{character_element_id_prefix}{character.id}"  on:mouseover={hover}>
-                    <!--<li><img src={character.imageurl} alt="loading.." style="width:{width}px; height:{height}px"/></li>-->
-                    <li><img src={character.imageurl} alt="loading.." /></li>
-                    <li>{character.firstname} <strong>{character.surname}</strong></li>
+                    <!--<li><img src={app.character_image_url(character)} alt="loading.." style="width:{width}px; height:{height}px"/></li>-->
+                    <li><img src={app.character_image_url(character)} alt="loading.." /></li>
+                    <li>{character.firstname} <strong>{character.surname || ""}</strong></li>
                 </ul>
             </Draggable>
         </li>

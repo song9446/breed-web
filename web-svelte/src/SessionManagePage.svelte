@@ -6,6 +6,14 @@ const dispatch = createEventDispatcher();
 
 let state = "login";
 
+app.reload_session()
+    .then(res => {
+        if(res.error)
+            console.log(res.error.message);
+        else {
+            return dispatch('logined', res.data);
+        }
+    });
 function login(){
     let id = document.getElementById("loginbox-id").value,
         pw = document.getElementById("loginbox-pw").value;
@@ -38,16 +46,6 @@ function join(){
     })
     .catch(res => alert(res));
 }
-app.reload_session()
-    .then(res => {
-        if(res.error)
-            console.log(res.error.message);
-        else {
-            return dispatch('logined', {
-                gamedata: res.data,
-            });
-        }
-    });
 
 </script>
 

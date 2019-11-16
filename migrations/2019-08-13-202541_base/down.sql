@@ -5,4 +5,4 @@ DROP TABLE actions;*/
 DROP TABLE characters;
 DROP TABLE jobs;
 DROP TABLE users;
-DROP TABLE states;
+/*DROP TABLE states;*/

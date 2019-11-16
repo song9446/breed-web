@@ -7,12 +7,10 @@ table! {
         fatherid -> Nullable<Int4>,
         ownerid -> Nullable<Int4>,
         seed -> Array<Float8>,
-        url -> Text,
         jobid -> Nullable<Int4>,
         height -> Float8,
         created_at -> Timestamp,
         stats -> Array<Int4>,
-        stateid -> Int4,
     }
 }
 
@@ -31,14 +29,6 @@ table! {
         name -> Text,
         description -> Text,
         factors -> Nullable<Array<Int4>>,
-    }
-}
-
-table! {
-    states (id) {
-        id -> Int4,
-        name -> Text,
-        description -> Text,
     }
 }
 
@@ -68,7 +58,6 @@ table! {
 }
 
 joinable!(characters -> jobs (jobid));
-joinable!(characters -> states (stateid));
 joinable!(characters -> users (ownerid));
 joinable!(characters_traits -> characters (characterid));
 joinable!(characters_traits -> traits (traitid));
@@ -77,7 +66,6 @@ allow_tables_to_appear_in_same_query!(
     characters,
     characters_traits,
     jobs,
-    states,
     traits,
     users,
 );

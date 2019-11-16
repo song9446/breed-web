@@ -14,6 +14,7 @@ use actix_session::{CookieSession};
 use actix_web::{middleware, web, App, HttpServer,};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
+
 use r2d2_beanstalkd::BeanstalkdConnectionManager;
 
 
@@ -43,7 +44,8 @@ fn main() -> std::io::Result<()> {
         .expect("Failed to create mq pool.");
     let front_url = std::env::var("FRONT_URL").expect("FRONT_URL must be set");
     let domain = std::env::var("DOMAIN").expect("DOMAIN must be set");
-    let domain_for_cookiesession = domain.clone();
+    let domain_for_cookiesession = front_url.clone();
+    //let domain_for_cookiesession = domain.clone();
 
     // Start http server
     HttpServer::new(move || {
@@ -52,10 +54,11 @@ fn main() -> std::io::Result<()> {
             .data(mqpool.clone())
             .wrap(actix_cors::Cors::new()
                   .allowed_origin(front_url.as_str())
+                  .supports_credentials()
             )
             .wrap(middleware::Logger::default())
             .wrap(CookieSession::signed(secret_key.as_bytes())
-                 .domain(domain_for_cookiesession.as_str())
+                 //.domain(domain_for_cookiesession.as_str())
                  .max_age_time(chrono::Duration::days(1))
                  .secure(false)
             )
@@ -71,6 +74,10 @@ fn main() -> std::io::Result<()> {
                 web::resource("/accounts")
                 .route(web::post().to_async(handlers::join))
                 //.route(web::delete().to_async(handlers::remove_account))
+                )
+            .service(
+                web::resource("/characters")
+                .route(web::post().to_async(handlers::summon_character))
                 )
             //.service(
                 //web::resource("/update")

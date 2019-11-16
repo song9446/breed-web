@@ -10,7 +10,7 @@ use futures::Future;
 use actix_web::{web, HttpResponse};
 //use futures::Future;
 
-use crate::models::{NewUser, User, UserWithPassword, UserManaUpdated, Pool, Character, NewCharacter};
+use crate::models::{NewUser, User, UserWithPassword, UserManaUpdated, Pool, Character, NewCharacter, CharacterWithoutSeed};
 
 use actix_session::Session;
 
@@ -142,7 +142,7 @@ pub fn logout(session: Session) -> Result<HttpResponse, ErrorResponse>{
 #[derive(Serialize, Deserialize)]
 pub struct SummonData {
 	pub user: UserManaUpdated,
-	pub character: Character,
+	pub character: CharacterWithoutSeed,
 }
 pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::Data<MqPool>) -> impl Future<Item = HttpResponse, Error = ErrorResponse> {
     let user_id = session.get("id")
@@ -172,21 +172,21 @@ pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::
             let user_mana_updated = UserManaUpdated{ mana: updated_mana, mana_updated_at: now };
             diesel::update(&user).set(&user_mana_updated).execute(dbconn)
 				.map_err(|_| Response::internal_server_error(""))?;
-            let seed_json = json!({
-                "seed": &character.seed,
-                "url": &character.url,
-            });
-            mqconn
-                .put(&seed_json.to_string(), 0, 0, 10)
-				.map_err(|_| Response::internal_server_error(""))?;
             use crate::schema::characters::dsl::*;
             let inserted_character = diesel::insert_into(characters)
                 .values(&character)
                 .get_result::<Character>(dbconn)
+				.map_err(|dberr| Response::internal_server_error(&format!("{:?}", dberr)))?;
+            let seed_json = json!({
+                "seed": &inserted_character.seed,
+                "url": &(inserted_character.id.to_string() + ".png"),
+            });
+            mqconn
+                .put(&seed_json.to_string(), 0, 0, 10)
 				.map_err(|_| Response::internal_server_error(""))?;
             Ok(SummonData {
                 user: user_mana_updated,
-                character: inserted_character,
+                character: inserted_character.into(),
             })
         })
     })
