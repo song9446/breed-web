@@ -64,7 +64,7 @@ function add_characters(character_list){
         }
         if(ch.fatherid)
             ch.father = characters_dict[ch.fatherid];
-        if(ch.partnerid){
+        if(ch.partnerid && ch.husband == null && ch.wife == null){
             ch.husband = characters_dict[ch.partnerid];
             characters_dict[ch.partnerid]["wife"] = ch;
         }

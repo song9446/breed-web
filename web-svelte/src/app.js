@@ -10,8 +10,8 @@ export class Application {
         return this.image_server_url + "/" + ch.id + ".png"
     }
 	update(){
-        return fetch(this.server_url + "/update", {
-            method: 'post',
+        return fetch(this.server_url + "/events", {
+            method: 'get',
             credentials: 'include',
 		})
         .then(res=>res.json())
@@ -75,10 +75,23 @@ export class Application {
         })
         .then(res=>res.json())
     }
+    marry(ch1, ch2) {
+        if(ch1.owner != ch2.owner || ch1.partnerid != null || ch2.partnerid == null)
+            return Promise.resolve({"error": {code:401, message:"Characters already have a partner"}});
+        return fetch(this.server_url + "/marriage", {
+            method: 'post',
+            body:JSON.stringify({"marrier": [ch1.id, ch2.id]}),
+            credentials: 'include',
+            headers:{
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res=>res.json())
+    }
     update_mana(user) {
         let now = new Date();
-        let charged_mana = 
-            user.mana_charge_per_day * 
+        let charged_mana =
+            user.mana_charge_per_day *
             ((now.getTime() - (new Date(user.mana_updated_at + (user.mana_updated_at.endsWith("Z")? "": "Z"))).getTime()) / (1000*3600*24));
         let new_mana = Math.min(user.mana + charged_mana, user.max_mana);
         return {"mana": new_mana, "mana_updated_at": now.toISOString()};

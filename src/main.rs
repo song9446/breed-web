@@ -82,9 +82,8 @@ fn main() -> std::io::Result<()> {
                 .route(web::post().to_async(handlers::summon_character))
                 )
             .service(
-                web::resource("/update")
-                //.route(web::get().to_async())
-                .route(web::post().to_async(handlers::update))
+                web::resource("/events")
+                .route(web::get().to_async(handlers::update))
                 )
     })
     .bind(domain)?
