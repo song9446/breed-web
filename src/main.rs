@@ -5,7 +5,7 @@ extern crate diesel;
 extern crate serde_derive;
 extern crate lazy_static;
 extern crate rand;
-extern crate r2d2_beanstalkd;
+//extern crate r2d2_beanstalkd;
 extern crate base64;
 extern crate byteorder;
 
@@ -15,7 +15,7 @@ use actix_web::{middleware, web, App, HttpServer,};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 
-use r2d2_beanstalkd::BeanstalkdConnectionManager;
+// use r2d2_beanstalkd::BeanstalkdConnectionManager;
 
 
 mod schema;
@@ -23,8 +23,9 @@ mod models;
 mod names;
 mod handlers;
 mod response;
+mod events;
 
-pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
+//pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
 
 
 fn main() -> std::io::Result<()> {
@@ -36,12 +37,13 @@ fn main() -> std::io::Result<()> {
     let pgpool: models::Pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pg pool.");
-    let mq_url = std::env::var("MESSAGE_QUEUE_URL").expect("MESSAGE_QUEUE_URL must be set");
+    /*et mq_url = std::env::var("MESSAGE_QUEUE_URL").expect("MESSAGE_QUEUE_URL must be set");
     let mut it = mq_url.split(":");
     let manager = BeanstalkdConnectionManager::new(it.next().unwrap().to_string(), it.next().unwrap().parse::<u16>().unwrap());
     let mqpool: MqPool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create mq pool.");
+        */
     let front_url = std::env::var("FRONT_URL").expect("FRONT_URL must be set");
     let domain = std::env::var("DOMAIN").expect("DOMAIN must be set");
     let domain_for_cookiesession = front_url.clone();
@@ -51,7 +53,7 @@ fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .data(pgpool.clone())
-            .data(mqpool.clone())
+            //.data(mqpool.clone())
             .wrap(actix_cors::Cors::new()
                   .allowed_origin(front_url.as_str())
                   .supports_credentials()
@@ -79,11 +81,11 @@ fn main() -> std::io::Result<()> {
                 web::resource("/characters")
                 .route(web::post().to_async(handlers::summon_character))
                 )
-            //.service(
-                //web::resource("/update")
+            .service(
+                web::resource("/update")
                 //.route(web::get().to_async())
-                //.route(web::post().to_async(handlers::update))
-            //    )
+                .route(web::post().to_async(handlers::update))
+                )
     })
     .bind(domain)?
     .run()

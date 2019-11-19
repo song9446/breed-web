@@ -1,17 +1,20 @@
 <script>
+import { character_element_id_prefix, } from './Character.svelte';
 import Character from './Character.svelte';
+import Event from './Event.svelte';
 import { app } from './app.js';
 
-export let characters
-export let user = {};
+export let characters;
+export let user;
 let characters_dict = {};
 let strangers = [];
 let family_tree_root = null;
 let events = [];
 
-$: if(characters) {
+/*$: if(characters) {
     add_characters(characters);
-}
+}*/
+add_characters(characters);
 
 setInterval(()=>{
     let user_mana_updated = app.update_mana(user);
@@ -19,16 +22,28 @@ setInterval(()=>{
     user.mana_updated_at = user_mana_updated.mana_updated_at;
 }, 100)
 
+setInterval(()=>{
+    app.update()
+    .then(res=>{
+        if(res.type == "error")
+            alert(res.message);
+        else if(res.type == "events"){
+            console.log("update:", res.event);
+            for(let event of res.events){
+                add_and_apply_event(event);
+            }
+        }
+    })
+    .catch(res=>alert(res))
+}, 1000)
+
 function summon_character() {
     app.summon_character(user)
     .then(res=>{
-        if(res.error)
-            alert(res.error.message);
-        else {
-            console.log(res.data);
-            add_characters([res.data.character]);
-            user.mana = res.data.user.mana;
-            user.mana_updated_at = res.data.user.updated_at;
+        if(res.type == "error")
+            alert(res.message);
+        else if(res.type == "event"){
+            add_and_apply_event(res.event);
         }
     })
     .catch(res=>alert(res));
@@ -69,6 +84,40 @@ function add_characters(character_list){
     family_tree_root = root;
 }
 
+function add_and_apply_event(event) {
+    switch(event.name){
+    case "summon_start":
+        event.icon_src = "";
+        event.name = "Summoning..";
+        event.desc = "You just started a ritual of summoning."
+        event.related_element_ids = [character_element_id_prefix + event.summon.id];
+        add_characters([event.summon]);
+        user.mana -= user.summon_mana_cost;
+    break;
+    case "summon_finish":
+        event.icon_src = "";
+        event.name = "Summonned";
+        event.desc = "You finished a ritual of summoning. Somebody was teleported here from far way."
+        event.related_element_ids = [character_element_id_prefix + event.summonid];
+    break;
+    case "pregnant":
+        event.icon_src = "";
+        event.name = "Pregnant";
+        event.desc = "One of your family is pregnant.";
+        event.related_element_ids = [
+            character_element_id_prefix + event.fetus.id, 
+            character_element_id_prefix + event.fetus.matherid];
+    break;
+    case "born":
+        event.icon_src = "";
+        event.name = "Born";
+        event.desc = "A baby is born.";
+        event.related_element_ids = [ character_element_id_prefix + event.fetus.id ];
+    break;
+    }
+    events = [event, ...events];
+}
+
 </script>
 
 
@@ -79,7 +128,10 @@ div.container {
         'events family strangers'
         'menu menu menu';
     grid-template-columns: min-content 1fr min-content;
+    grid-template-rows: 1fr min-content;
     background-color: white;
+    height: 100%;
+    padding: 1rem;
 }
 section.events {
     text-align: center;
@@ -93,8 +145,8 @@ section.strangers {
     text-align: center;
     grid-area: strangers;
 }
-section menu {
-    grid-area: summon_button;
+section.menu {
+    grid-area: menu;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -112,6 +164,23 @@ section other {
 .strangers ul>li{
   margin: 0.5em;
 }
+
+.user-mana-container {
+    display: flex;
+    flex-direction: column;
+}
+.user-mana {
+    display: flex;
+    flex-direction: column;
+}
+.user-summon-mana-cost {
+    display: flex;
+    flex-direction: column;
+}
+
+.summon-button {
+    font-size: 2rem;
+}
 </style>
 
 <div class="container">
@@ -119,6 +188,11 @@ section other {
     <h1>
         Events
     </h1>
+    <ul>
+        {#each events as event}
+        <Event event={event} />
+        {/each}
+    </ul>
 </section>
 <section class="family">
     <h1>
@@ -146,8 +220,14 @@ section other {
         <button class="summon-button" on:click={summon_character}>소환</button>
     </div>
     <div class="user-mana-container">
-        <div class="user-mana"> {user.mana} </div>
-        <div class="user-summon-mana-cost"> {user.summon_mana_cost} </div>
+        <div class="user-mana"> 
+            <span>마나</span> 
+            <span>{user.mana.toFixed()}</span> 
+        </div>
+        <div class="user-summon-mana-cost"> 
+            <span>소환에 필요한 마나</span> 
+            <span>{user.summon_mana_cost} </span>
+        </div>
     </div>
 </section>
 </div>

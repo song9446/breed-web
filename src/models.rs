@@ -1,9 +1,6 @@
-use rand::prelude::*;
+//use rand::prelude::*;
+use rand::{thread_rng, Rng};
 use rand::distributions::StandardNormal;
-
-use crate::response::ErrorResponse;
-
-use crate::byteorder::ByteOrder;
 
 use diesel::prelude::*;
 use diesel::RunQueryDsl;
@@ -17,10 +14,10 @@ pub const HEIGHT_VAR:f64 = 10.0;
 pub const STATS_NUM:i32 = 7;
 pub const STATS_MEAN:f64 = 5.0;
 pub const STATS_VAR:f64 = 5.0;
-pub const SEED_LEN: usize = 512;
-pub const SUMMON_MANA_COST:i32 = 3333;
-pub const MAX_MANA:i32 = 10000;
-pub const MANA_CHARGE_PER_DAY:i32 = 10000;
+pub const SEED_LEN: usize = 512*18;
+pub const SUMMON_MANA_COST:i32 = 1;
+pub const MAX_MANA:i32 = 1000000;
+pub const MANA_CHARGE_PER_DAY:i32 = 1000000;
 //pub const RANDOM_CHARACTER_GEN_ACTION_ID: i32 = 1;
 
 #[derive(Serialize, Deserialize, Queryable)]
@@ -47,7 +44,7 @@ impl UserWithPassword {
 		}
 	}
 }
-#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations)]
+#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug)]
 pub struct User {
     pub id: i32,
     pub nickname: String,
@@ -97,47 +94,16 @@ pub struct Character {
     pub matherid: Option<i32>,
     pub fatherid: Option<i32>,
     pub ownerid: Option<i32>,
-    pub seed: Vec<f64>,
     pub jobid: Option<i32>,
     pub height: f64,
-    pub created_at: chrono::NaiveDateTime,
     pub stats: Vec<i32>,
+    pub gender: i32,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+    pub image_server_domain: Option<String>,
+    pub born: bool,
     //pub stateid: i32,
     //pub created_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug)]
-#[table_name = "characters"]
-pub struct CharacterWithoutSeed {
-    pub id: i32,
-    pub firstname: String,
-    pub surname: Option<String>,
-    pub matherid: Option<i32>,
-    pub fatherid: Option<i32>,
-    pub ownerid: Option<i32>,
-    pub jobid: Option<i32>,
-    pub height: f64,
-    pub created_at: chrono::NaiveDateTime,
-    pub stats: Vec<i32>,
-    //pub stateid: i32,
-    //pub created_at: chrono::DateTime<chrono::Utc>,
-}
-impl From<Character> for CharacterWithoutSeed {
-    fn from(c: Character) -> Self {
-        CharacterWithoutSeed {
-            id: c.id,
-            firstname: c.firstname,
-            surname: c.surname,
-            matherid: c.matherid,
-            fatherid: c.fatherid,
-            ownerid: c.ownerid,
-            jobid: c.jobid,
-            height: c.height,
-            created_at: c.created_at,
-            stats: c.stats,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Insertable)]
@@ -147,32 +113,32 @@ pub struct NewCharacter {
     pub matherid: Option<i32>,
     pub fatherid: Option<i32>,
     pub ownerid: Option<i32>,
-    pub seed: Vec<f64>,
+    pub gender: i32,
     pub height: f64,
     pub stats: Vec<i32>,
 }
 impl NewCharacter {
-    fn new(seed: Vec<f64>) -> NewCharacter {
+    pub fn random() -> NewCharacter {
         NewCharacter {
-            firstname: crate::names::gen().to_string(),
+            firstname: crate::names::gen(),
             matherid:None,
             fatherid:None,
             ownerid:None,
-            seed,
-            height: SmallRng::from_entropy().sample(StandardNormal)*HEIGHT_VAR+HEIGHT_MEAN,
-            stats: (0..STATS_NUM).map(|_| (SmallRng::from_entropy().sample(StandardNormal)*STATS_VAR + STATS_MEAN) as i32).collect::<Vec<i32>>(),
+            height: thread_rng().sample(StandardNormal)*HEIGHT_VAR+HEIGHT_MEAN,
+            gender: thread_rng().gen_range(0, 2),
+            stats: (0..STATS_NUM).map(|_| (thread_rng().sample(StandardNormal)*STATS_VAR + STATS_MEAN) as i32).collect::<Vec<i32>>(),
         }
     }
-    fn with_owner(mut self, ownerid: i32) -> Self{
+    pub fn with_owner(mut self, ownerid: i32) -> Self{
         self.ownerid = Some(ownerid);
         self
     }
-    fn with_parents(mut self, matherid: i32, fatherid: i32) -> Self{
+    pub fn with_parents(mut self, matherid: i32, fatherid: i32) -> Self{
         self.matherid = Some(matherid);
         self.fatherid = Some(fatherid); 
         self
     }
-    pub fn synthesize(dbconn: &PgConnection, owner_id:i32, mather_id: i32, father_id: i32) -> Result<NewCharacter, ErrorResponse>  {
+    /*pub fn synthesize(dbconn: &PgConnection, owner_id:i32, mather_id: i32, father_id: i32) -> Result<NewCharacter, ErrorResponse>  {
         use crate::schema::characters::dsl::*;
         let mut rng = rand::thread_rng();
         let seed1:Vec<f64> = characters
@@ -190,10 +156,5 @@ impl NewCharacter {
             seed1[i]*r+seed2[i]*(1.0-r)
         }).collect();
         Ok(Self::new(new_seed).with_owner(owner_id).with_parents(mather_id, father_id))
-    }
-    pub fn random(ownerid:i32) -> NewCharacter {
-        let mut rng = rand::thread_rng();
-        let seed = (0..SEED_LEN).map(|_| rng.gen::<f64>()).collect();
-        Self::new(seed).with_owner(ownerid)
-    }
+    }*/
 }

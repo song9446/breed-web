@@ -26,7 +26,7 @@ uuid = { version = "0.7", features = ["serde", "v4"] }
 dotenv = "0.14.1"
 rand = "0.6.5"
 #beanstalkc = { git = "https://github.com/song9446/beanstalkc-rust" }
-r2d2_beanstalkd = { git = "https://github.com/song9446/r2d2-beanstalkd" }
+#r2d2_beanstalkd = { git = "https://github.com/song9446/r2d2-beanstalkd" }
 # beanstalkc = "0.2.0"
 base64 = "0.11.0"
-byteorder = "1.3.1"
+byteorder = "1.3.2"

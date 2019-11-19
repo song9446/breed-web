@@ -11,10 +11,10 @@ export class Application {
     }
 	update(){
         return fetch(this.server_url + "/update", {
+            method: 'post',
             credentials: 'include',
 		})
-		.then(res => {
-		});
+        .then(res=>res.json())
 	}
     reload_session(){
         return fetch(this.server_url + "/session", {
@@ -63,17 +63,9 @@ export class Application {
         })
         .then(res=>res.json());
     }
-    update_mana(user) {
-        let now = new Date();
-        let charged_mana = 
-            user.mana_charge_per_day * 
-            ((now.getTime() - (new Date(user.mana_updated_at + (user.mana_updated_at.endsWith("Z")? "": "Z"))).getTime()) / (1000*3600*24));
-        let new_mana = Math.min(user.mana + charged_mana, user.max_mana);
-        return {"mana": new_mana, "mana_updated_at": now.toISOString()};
-    }
     summon_character(user) {
         if(this.update_mana(user).mana - user.summon_mana_cost < 0)
-            return Promise.reject({"error": {code:401, message:"Not enough mana"}});
+            return Promise.resolve({"error": {code:401, message:"Not enough mana"}});
         return fetch(this.server_url + "/characters", {
             method: 'post',
             credentials: 'include',
@@ -82,6 +74,14 @@ export class Application {
             }
         })
         .then(res=>res.json())
+    }
+    update_mana(user) {
+        let now = new Date();
+        let charged_mana = 
+            user.mana_charge_per_day * 
+            ((now.getTime() - (new Date(user.mana_updated_at + (user.mana_updated_at.endsWith("Z")? "": "Z"))).getTime()) / (1000*3600*24));
+        let new_mana = Math.min(user.mana + charged_mana, user.max_mana);
+        return {"mana": new_mana, "mana_updated_at": now.toISOString()};
     }
     dummy_gamedata(){
         return {

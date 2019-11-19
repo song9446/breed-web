@@ -13,11 +13,35 @@ function login(e){
     logined = true;
 }
 
+function logout(){
+    logined = false;
+    user = null;
+    characters = null
+}
+
 </script>
 
+<style>
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.topnav {
+}
+.main {
+    flex-grow: 1;
+    padding: 1rem;
+}
+</style>
 
+<div class="container">
+<div class="topnav">
+    <SessionManagePage on:login={login} on:logout={logout} />
+</div>
 {#if logined }
-<Game user={user} characters={characters}/>
-{:else}
-<SessionManagePage on:logined={login}/>
+<div class="main">
+    <Game user={user} characters={characters}/>
+</div>
 {/if}
+</div>

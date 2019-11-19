@@ -1,8 +1,8 @@
 <script context="module">
 import { writable } from 'svelte/store';
 import { app } from './app.js';
-const character_element_id_prefix = "character";
-const couple_element_id_prefix = "couple";
+export const character_element_id_prefix = "character";
+export const couple_element_id_prefix = "couple";
 const path_element_id_prefix = "path";
 let pathes_highlighted_store = writable({});
 
@@ -156,6 +156,9 @@ path.highlight {
   }
 }
 
+ul.character-properties.highlight {
+    border: 2px solid red;
+}
 </style>
 
 <svelte:window on:resize={update_line_variables}/>

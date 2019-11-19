@@ -33,17 +33,20 @@ CREATE TABLE characters (
     matherid INTEGER REFERENCES characters (id),
     fatherid INTEGER REFERENCES characters (id),
     ownerid INTEGER REFERENCES users (id),
-    seed FLOAT[] NOT NULL,
-    /*url TEXT NOT NULL,*/
     jobid INTEGER REFERENCES jobs (id),
     height FLOAT NOT NULL DEFAULT 160.0,
+    stats INTEGER[6] NOT NULL,
+    gender INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    stats INTEGER[6] NOT NULL
-    /*stateid INTEGER NOT NULL DEFAULT 0 REFERENCES states (id)*/
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    image_server_domain TEXT,
+    born BOOLEAN NOT NULL DEFAULT FALSE
+    /*sktateid INTEGER NOT NULL DEFAUL 0 REFERENCES states (id)*/
 );
 CREATE INDEX characters_ownerid_idx ON characters (ownerid);
-CREATE INDEX characters_materid_idx ON characters (matherid);
-CREATE INDEX characters_fatherid_idx ON characters (fatherid);
+CREATE INDEX characters_fatherid_idx ON characters (born);
+/*CREATE INDEX characters_materid_idx ON characters (matherid);
+CREATE INDEX characters_fatherid_idx ON characters (fatherid);*/
 
 
 

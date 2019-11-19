@@ -6,11 +6,14 @@ table! {
         matherid -> Nullable<Int4>,
         fatherid -> Nullable<Int4>,
         ownerid -> Nullable<Int4>,
-        seed -> Array<Float8>,
         jobid -> Nullable<Int4>,
         height -> Float8,
-        created_at -> Timestamp,
         stats -> Array<Int4>,
+        gender -> Int4,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        image_server_domain -> Nullable<Text>,
+        born -> Bool,
     }
 }
 

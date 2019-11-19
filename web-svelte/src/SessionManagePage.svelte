@@ -6,23 +6,42 @@ const dispatch = createEventDispatcher();
 
 let state = "login";
 
+let user = null;
+
 app.reload_session()
     .then(res => {
-        if(res.error)
-            console.log(res.error.message);
+        if(res.type == "error")
+            console.log(res.message);
         else {
-            return dispatch('logined', res.data);
+            state = "logined";
+            user = res.user;
+            return dispatch('login', res);
         }
     });
+
 function login(){
     let id = document.getElementById("loginbox-id").value,
         pw = document.getElementById("loginbox-pw").value;
     app.login(id, pw)
     .then(res => {
-        if(res.error)
-            alert(res.error.message);
+        if(res.type == "error")
+            alert(res.message);
         else {
-            return dispatch('logined', res.data);
+            state = "logined";
+            user = res.user;
+            return dispatch('login', res);
+        }
+    })
+    .catch(res => alert(res));
+}
+function logout(){
+    app.logout()
+    .then(res => {
+        if(res.type == "error")
+            alert(res.message);
+        else {
+            state = "login"
+            return dispatch('logout');
         }
     })
     .catch(res => alert(res));
@@ -37,8 +56,8 @@ function join(){
         surname = document.getElementById("loginbox-surname").value;
     app.join(id, pw, surname, email)
     .then(res => {
-        if(res.error)
-            alert(res.error.message);
+        if(res.type == "error")
+            alert(res.message);
         else {
             alert("thank you for join us!");
             state = "login"
@@ -50,9 +69,11 @@ function join(){
 </script>
 
 <style>
-.container {
+.fullscreen {
     display: flex;
+    position: fix;
     height: 100%;
+    width: 100%;
     align-items: center;
     justify-content: center;
 }
@@ -78,9 +99,47 @@ label {
 .title{
     text-align: center;
 }
+
+.topnav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #aaa;
+    background-color: white;
+    padding: 0.5rem;
+}
+.topnav .container {
+    display: flex;
+    align-items: center;
+}
+.topnav .container * {
+    margin: 0;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+    width: auto;
+}
+.topnav .title {
+    font-size: 1.2rem;
+}
 </style>
 
-<div class="container">
+{#if state=="logined" }
+<div class="topnav">
+    <div class="title">
+        Degeneration
+    </div>
+    <div class="container">
+        <span>
+           Hi, <b>{user.nickname}</b>!
+        </span>
+        <button on:click={logout}>Logout</button>
+    </div>
+</div>
+
+{:else}
+<div class="fullscreen">
 <div class="loginbox">
     <div class="title">
         <h1>
@@ -91,12 +150,10 @@ label {
         <label for="loginbox-id">ID</label>
         <input id="loginbox-id" required />
     </div>
-
     <div>
         <label for="loginbox-pw">PW</label>
         <input id="loginbox-pw" type="password" required />
     </div>
-
     {#if state == "login"}
     <button on:click={login}>Login</button>
     <button on:click={join_form_open}>Join</button>
@@ -114,3 +171,4 @@ label {
     {/if}
 </div>
 </div>
+{/if}

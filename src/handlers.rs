@@ -10,25 +10,21 @@ use futures::Future;
 use actix_web::{web, HttpResponse};
 //use futures::Future;
 
-use crate::models::{NewUser, User, UserWithPassword, UserManaUpdated, Pool, Character, NewCharacter, CharacterWithoutSeed};
+use crate::models::{NewUser, User, UserWithPassword, UserManaUpdated, Pool, Character, NewCharacter};
 
 use actix_session::Session;
 
 use serde_json::json;
 
-use r2d2_beanstalkd::BeanstalkdConnectionManager;
+//use r2d2_beanstalkd::BeanstalkdConnectionManager;
 
 use chrono::prelude::*;
 
-use crate::response::{Response, ErrorResponse};
+use crate::response::{Response};
+use crate::events::{Event};
 
-pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
+//pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
 
-#[derive(Serialize, Deserialize)]
-pub struct GameData {
-	pub user: User,
-	pub characters: Vec<Character>,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct JoinForm {
@@ -37,7 +33,7 @@ pub struct JoinForm {
     pub email: String,
     pub nickname: String,
 }
-pub fn join(join_form: web::Json<JoinForm>, _session: Session, pool: web::Data<Pool>)  -> impl Future<Item = HttpResponse, Error = ErrorResponse> {
+pub fn join(join_form: web::Json<JoinForm>, _session: Session, pool: web::Data<Pool>)  -> impl Future<Item = HttpResponse, Error = Response> {
     web::block(move || {
         use crate::schema::users::dsl::*;
         let conn: &PgConnection = &pool.get().unwrap();
@@ -52,10 +48,9 @@ pub fn join(join_form: web::Json<JoinForm>, _session: Session, pool: web::Data<P
                 _ => Response::internal_server_error(""),
             })
     })
-	.from_err::<ErrorResponse>()
+	.from_err::<Response>()
 	.and_then(|_| {
-		Ok(HttpResponse::Ok().json(Response::data(())))
-	})
+		Ok(HttpResponse::Ok().json(Response::ok)) })
 }
 
 
@@ -65,7 +60,7 @@ pub struct LoginData {
     pub id: String,
     pub password: String,
 }
-pub fn login(data: web::Json<LoginData>, session: Session, pool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = ErrorResponse> {
+pub fn login(data: web::Json<LoginData>, session: Session, pool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = Response> {
     web::block(move || {
         let conn: &PgConnection = &pool.get().unwrap();
         let data = data.into_inner();
@@ -93,17 +88,20 @@ pub fn login(data: web::Json<LoginData>, session: Session, pool: web::Data<Pool>
 				.load::<Character>(conn)
 				.map_err(|_| Response::internal_server_error("no characters"))?
 		};
-		Ok(GameData{user: user_with_password.without_password(), characters})
+		//Ok(Response::login{ user: user_with_password.without_password(), characters })
+        Ok((user_with_password.without_password(), characters))
     })
-	.from_err::<ErrorResponse>()
-    .and_then(move |gamedata| {
-		session.set("id", gamedata.user.id)
+	.from_err::<Response>()
+    .and_then(move |result| {
+        let (user, characters) = result;
+		session.set("id", user.id)
 			.map_err(|_| Response::internal_server_error("session set"))?;
-		Ok(Response::ok(gamedata))
+        let response = Response::login{ user, characters };
+		Ok(HttpResponse::Ok().json(response))
 	})
 }
 
-pub fn reload_session(session: Session, pool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = ErrorResponse> {
+pub fn reload_session(session: Session, pool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = Response> {
     let user_id = session.get("id")
         .map_err(|_| Response::unauthorized(""))
         .and_then(|val| val.ok_or(Response::unauthorized("")));
@@ -128,31 +126,27 @@ pub fn reload_session(session: Session, pool: web::Data<Pool>) -> impl Future<It
 				.load::<Character>(conn)
 				.map_err(|_| Response::internal_server_error(""))?
 		};
-		Ok(GameData{user, characters})
+		Ok(Response::login{ user, characters })
     })
-	.from_err::<ErrorResponse>()
-    .and_then(|gamedata| Ok(Response::ok(gamedata)))
+	.from_err::<Response>()
+    .and_then(|gamedata| Ok(HttpResponse::Ok().json(gamedata)))
+		
 }
 
-pub fn logout(session: Session) -> Result<HttpResponse, ErrorResponse>{
+pub fn logout(session: Session) -> Result<HttpResponse, Response>{
     session.clear();
-	Ok(Response::ok(()))
+    Ok(HttpResponse::Ok().json(Response::ok))
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct SummonData {
-	pub user: UserManaUpdated,
-	pub character: CharacterWithoutSeed,
-}
-pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::Data<MqPool>) -> impl Future<Item = HttpResponse, Error = ErrorResponse> {
+pub fn summon_character(session: Session, dbpool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = Response> {
     let user_id = session.get("id")
         .map_err(|_| Response::unauthorized(""))
         .and_then(|val| val.ok_or(Response::unauthorized("")));
     web::block(move || {
         let user_id: i32 = user_id?;
         let dbconn: &PgConnection = &dbpool.get().unwrap();
-        let mqconn = &mut mqpool.get().unwrap();
-        let character = NewCharacter::random(user_id);
+        //let mqconn = &mut mqpool.get().unwrap();
+        let character = NewCharacter::random().with_owner(user_id);
         dbconn.transaction(|| {
             use crate::schema::users::dsl::*;
             let user = users
@@ -173,24 +167,48 @@ pub fn summon_character(session: Session, dbpool: web::Data<Pool>, mqpool: web::
             diesel::update(&user).set(&user_mana_updated).execute(dbconn)
 				.map_err(|_| Response::internal_server_error(""))?;
             use crate::schema::characters::dsl::*;
-            let inserted_character = diesel::insert_into(characters)
+            let summon = diesel::insert_into(characters)
                 .values(&character)
                 .get_result::<Character>(dbconn)
 				.map_err(|dberr| Response::internal_server_error(&format!("{:?}", dberr)))?;
-            let seed_json = json!({
+            /*let seed_json = json!({
                 "seed": &inserted_character.seed,
                 "url": &(inserted_character.id.to_string() + ".png"),
             });
             mqconn
                 .put(&seed_json.to_string(), 0, 0, 10)
-				.map_err(|_| Response::internal_server_error(""))?;
-            Ok(SummonData {
-                user: user_mana_updated,
-                character: inserted_character.into(),
-            })
+				.map_err(|_| Response::internal_server_error(""))?;*/
+            Ok(Response::event{ event: Event::summon_start{ summon } })
         })
     })
-	.from_err::<ErrorResponse>()
-	.and_then(|summon_data| Ok(Response::ok(summon_data)))
+	.from_err::<Response>()
+	.and_then(|summon_event| Ok(HttpResponse::Ok().json(summon_event)))
+}
 
+
+pub fn update(session: Session, dbpool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = Response> {
+    let user_id = session.get("id")
+        .map_err(|_| Response::unauthorized(""))
+        .and_then(|val| val.ok_or(Response::unauthorized("")));
+    web::block(move || {
+        let user_id: i32 = user_id?;
+        let conn: &PgConnection = &dbpool.get().unwrap();
+        conn.transaction(|| {
+            use crate::schema::characters::dsl::*;
+            let chs = characters
+                    .filter(ownerid.eq(user_id))
+                    .load::<Character>(conn)
+                    .map_err(|_| Response::internal_server_error(""))?;
+            let mut events: Vec<Event> = Vec::new();
+            for ch in &chs {
+                Event::push_events(&mut events, &ch, &chs);
+            }
+            for event in &events {
+                event.apply(&conn)?;
+            }
+            Ok(Response::events{ events })
+        })
+    })
+	.from_err::<Response>()
+	.and_then(|res| Ok(HttpResponse::Ok().json(res)))
 }
