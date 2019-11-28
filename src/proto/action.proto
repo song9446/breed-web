@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package action;
+
+message Action {
+    oneof action {
+        Login login = 1;
+        Marry marry = 2;
+        Summon summon = 3;
+    }
+}
+
+message Login {
+    string id = 1;
+    string pw = 2;
+}
+message Marry {
+    int32 groomid = 1;
+    int32 brideid = 2;
+}
+message Summon {
+}

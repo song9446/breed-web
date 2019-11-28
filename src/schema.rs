@@ -5,7 +5,6 @@ table! {
         surname -> Nullable<Text>,
         matherid -> Nullable<Int4>,
         fatherid -> Nullable<Int4>,
-        partnerid -> Nullable<Int4>,
         ownerid -> Nullable<Int4>,
         jobid -> Nullable<Int4>,
         height -> Float8,
@@ -33,6 +32,14 @@ table! {
         name -> Text,
         description -> Text,
         factors -> Nullable<Array<Int4>>,
+    }
+}
+
+table! {
+    states (id) {
+        id -> Int4,
+        name -> Text,
+        description -> Text,
     }
 }
 
@@ -70,6 +77,7 @@ allow_tables_to_appear_in_same_query!(
     characters,
     characters_traits,
     jobs,
+    states,
     traits,
     users,
 );

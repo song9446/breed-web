@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package event;
+
+message Event {
+    oneof event {
+        Logined logined = 1;
+        Born born = 2;
+        Pregnant pregnant = 3;
+        SummonStart summon_start = 4;
+        SummonFinish summon_finished = 5;
+        Married married = 6;
+		string error = 7;
+    }
+}
+
+message Logined {
+    User user = 1;
+    repeated Character characters = 2;
+}
+message Born {
+    int32 matherid = 1;
+    int32 fatherid = 2;
+    Character baby = 3;
+}
+message Pregnant {
+    int32 matherid = 1;
+    int32 fatherid = 2;
+    Character fetus = 3;
+}
+message SummonStart {
+    Character summon = 1;
+}
+message SummonFinish {
+    Character summon = 1;
+}
+message Married {
+    int32 groomid = 1;
+    int32 brideid = 2;
+}
+
+message Character {
+    int32 id = 1;
+    string firstname = 2;
+    string surname = 4;
+    int32 matherid = 5;
+    int32 fatherid = 6;
+    int32 partnerid = 3;
+    int32 ownerid = 7;
+    int32 jobid = 8;
+    double height = 9;
+    repeated int32 stats = 10;
+    int32 gender = 11;
+    int64 created_at = 12;
+    int64 updated_at = 13;
+    string image_server_domain = 14;
+    bool born = 15;
+}
+
+message User {
+    int32 id = 1;
+    string nickname = 2;
+    int32 mana = 3;
+    int32 mana_charge_per_day = 4;
+    int32 max_mana = 5;
+    int32 summon_mana_cost = 6;
+    int64 mana_updated_at = 7;
+}

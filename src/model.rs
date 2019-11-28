@@ -1,13 +1,9 @@
-//use rand::prelude::*;
 use rand::{thread_rng, Rng};
 use rand::distributions::StandardNormal;
-
 use diesel::prelude::*;
-use diesel::RunQueryDsl;
-use diesel::QueryDsl;
-use diesel::{r2d2::ConnectionManager, PgConnection};
 use super::schema::*;
-pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
+use super::*;
+use anyhow::Result;
 
 pub const HEIGHT_MEAN:f64 = 160.0;
 pub const HEIGHT_VAR:f64 = 10.0;
@@ -44,7 +40,7 @@ impl UserWithPassword {
 		}
 	}
 }
-#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug)]
+#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug, Clone)]
 pub struct User {
     pub id: i32,
     pub nickname: String,
@@ -66,7 +62,7 @@ pub struct NewUser {
     pub summon_mana_cost: i32,
 }
 impl NewUser {
-    pub fn new(userid: String, plain_password: String, email: String, nickname: String) -> Result<Self, bcrypt::BcryptError> {
+    pub fn new(userid: String, plain_password: String, email: String, nickname: String) -> Result<Self> {
         Ok(NewUser {
             userid: userid,
             password: bcrypt::hash(&plain_password, 6)?,//bcrypt::DEFAULT_COST)?,
@@ -78,14 +74,7 @@ impl NewUser {
         })
     }
 }
-#[derive(Serialize, Deserialize, AsChangeset)]
-#[table_name = "users"]
-pub struct UserManaUpdated {
-    pub mana: i32,
-    pub mana_updated_at: chrono::NaiveDateTime,
-}
 
-#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug, Clone)]
 pub struct Character {
     pub id: i32,
@@ -106,7 +95,26 @@ pub struct Character {
     //pub stateid: i32,
     //pub created_at: chrono::DateTime<chrono::Utc>,
 }
-
+impl From<Character> for event::Character {
+    fn from(ch: Character) -> event::Character {
+        event::Character{
+            id: ch.id,
+            firstname: ch.firstname,
+            surname : ch.surname.unwrap_or("".into()),
+            matherid : ch.matherid.unwrap_or(0),
+            fatherid : ch.fatherid.unwrap_or(0),
+            ownerid : ch.ownerid.unwrap_or(0),
+            jobid : ch.jobid.unwrap_or(0),
+            height : ch.height,
+            stats : ch.stats,
+            gender : ch.gender,
+            created_at :ch.created_at.timestamp(),
+            updated_at : ch.updated_at.timestamp(),
+            image_server_domain : ch.image_server_domain.unwrap_or("".into()),
+            born : ch.born,
+        }
+    }
+}
 #[derive(Serialize, Deserialize, Insertable)]
 #[table_name="characters"]
 pub struct NewCharacter {
@@ -121,7 +129,7 @@ pub struct NewCharacter {
 impl NewCharacter {
     pub fn random() -> NewCharacter {
         NewCharacter {
-            firstname: crate::names::gen(),
+            firstname: super::name::gen(),
             matherid:None,
             fatherid:None,
             ownerid:None,

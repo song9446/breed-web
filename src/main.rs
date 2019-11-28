@@ -1,102 +1,119 @@
-#![allow(dead_code)] // usful in dev mode
+#![recursion_limit="256"]
 #[macro_use]
 extern crate diesel;
 #[macro_use]
 extern crate serde_derive;
-extern crate lazy_static;
-extern crate rand;
-//extern crate r2d2_beanstalkd;
-extern crate base64;
-extern crate byteorder;
 
+use anyhow::{Result, Error, anyhow};
+use std::time::Duration;
 
-use actix_session::{CookieSession};
-use actix_web::{middleware, web, App, HttpServer,};
+use futures::{pin_mut, SinkExt, StreamExt, TryFutureExt, FutureExt, future, select};
+use futures::stream::{FuturesUnordered, SelectAll, SplitStream, SplitSink};
+use tokio::net::{TcpListener, TcpStream};
+use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use tokio_tungstenite::tungstenite::protocol::Message;
+use tokio_tungstenite::{accept_hdr_async, WebSocketStream, accept_async};
+use tokio::{runtime, task};
+use tokio::time::timeout;
+
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-use url::Url;
-use actix_web::client::Client;
 
-// use r2d2_beanstalkd::BeanstalkdConnectionManager;
-
+use bytes::{BufMut, Buf};
+use prost::Message as ProstMessage;
 
 mod schema;
-mod models;
-mod names;
-mod handlers;
-mod response;
-mod events;
+#[allow(non_snake_case)]
+mod model;
+mod session;
+mod name;
 
-//pub type MqPool = r2d2::Pool<BeanstalkdConnectionManager>;
+mod event {
+    include!(concat!(env!("OUT_DIR"), "/event.rs"));
+}
+mod action {
+    include!(concat!(env!("OUT_DIR"), "/action.rs"));
+}
+
+use model::{User, Character};
+use session::{Session};
+
+pub type WebSocket = WebSocketStream<TcpStream>;
+pub type DbPool = r2d2::Pool<ConnectionManager<diesel::PgConnection>>;
+
+const LOGIN_TIMEOUT :Duration = Duration::from_secs(5);
+const REACTION_TIMEOUT :Duration = Duration::from_secs(5);
+
+async fn run(addr: &str, dbpool: DbPool) {
+    let mut listener = TcpListener::bind(addr).await.unwrap();
+    while let Ok((sock, _)) = listener.accept().await {
+        let dbpool = dbpool.clone();
+        tokio::spawn(async move {
+            let mut ws = match accept_async(sock).await {
+                Ok(ws) => ws,
+                Err(err) => {
+                    println!("{:?}", err);
+                    return;
+                }
+            }; 
+            evloop(ws, dbpool).await;
+        });
+    }
+}
+
+async fn recv_action(ws: &mut WebSocket, timeout_du: Duration) -> Result<action::Action> {
+    let binary = match timeout(timeout_du, ws.next()).await? {
+        Some(Ok(Message::Binary(msg))) => Ok(msg),
+        _ => Err(anyhow!("fail to recv binary message")),
+    }?;
+    Ok(action::Action::decode(binary)?)
+}
+
+async fn evloop(mut ws: WebSocket, dbpool: DbPool) -> Result<()> {
+    let msg = recv_action(&mut ws, LOGIN_TIMEOUT).await?;
+    let login = match msg.action {
+        Some(action::action::Action::Login(login)) => login,
+        _ => return Err(anyhow!("must login before do something")),
+    };
+    let mut session = Session::login(dbpool, login.id, login.pw).await?;
+    loop {
+        select! {
+            msg = recv_action(&mut ws, REACTION_TIMEOUT).fuse() => {
+                let msg = msg?;
+                let res = match msg.action {
+                    Some(action::action::Action::Login(login)) => Err(anyhow!("already logined!")),
+                    Some(action::action::Action::Marry(marry)) => session.marry(marry.groomid, marry.brideid).await,
+                    Some(action::action::Action::Summon(summon)) => session.summon().await,
+                    _ => {Ok(())}
+                };
+                if let Err(err) = res {
+                    session.event_queue.push(event::Event{
+                        event: Some(event::event::Event::Error ( err.to_string() ))
+                    });
+                }
+            },
+            default => {
+                // update
+                // send events
+            },
+            complete => {
+                break;
+            },
+        }
+    }
+    Ok(())
+}
 
 
-fn main() -> std::io::Result<()> {
+#[tokio::main(basic_scheduler)]
+async fn main() {
     dotenv::dotenv().ok();
-    env_logger::init();
-	let secret_key = std::env::var("SECRET_KEY").unwrap_or("0123".repeat(8));
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    //let timeout = std::env::var("TIMEOUT_DURATION").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
-    let pgpool: models::Pool = r2d2::Pool::builder()
+    let pgpool: DbPool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pg pool.");
-    /*et mq_url = std::env::var("MESSAGE_QUEUE_URL").expect("MESSAGE_QUEUE_URL must be set");
-    let mut it = mq_url.split(":");
-    let manager = BeanstalkdConnectionManager::new(it.next().unwrap().to_string(), it.next().unwrap().parse::<u16>().unwrap());
-    let mqpool: MqPool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create mq pool.");
-        */
-    let front_url = std::env::var("FRONT_URL").expect("FRONT_URL must be set");
-    let front_url = Url::parse(front_url.as_str()).expect("FRONT_URL is invalid format(should be [protocol]://[addr]:[port])");
-    let domain = std::env::var("DOMAIN").expect("DOMAIN must be set");
-    //let domain_for_cookiesession = front_url.clone();
-    //let domain_for_cookiesession = domain.clone();
 
-    // Start http server
-    HttpServer::new(move || {
-        App::new()
-            .data(pgpool.clone())
-            .data(Client::new())
-            .data(front_url.clone())
-            //.data(mqpool.clone())
-            /*.wrap(actix_cors::Cors::new()
-                  .allowed_origin(front_url.as_str())
-                  .supports_credentials()
-            )*/
-            .wrap(middleware::Logger::default())
-            .wrap(CookieSession::signed(secret_key.as_bytes())
-                 //.domain(domain_for_cookiesession.as_str())
-                 .max_age_time(chrono::Duration::days(1))
-                 .secure(false)
-            )
-            .data(web::JsonConfig::default().limit(4096))
-            .service(
-                web::resource("/session")
-                .route(web::get().to_async(handlers::reload_session))
-                .route(web::post().to_async(handlers::login))
-                .route(web::delete().to(handlers::logout))
-                )
-            .service(
-                web::resource("/accounts")
-                .route(web::post().to_async(handlers::join))
-                //.route(web::delete().to_async(handlers::remove_account))
-                )
-            .service(
-                web::resource("/characters")
-                .route(web::post().to_async(handlers::summon_character))
-                )
-            .service(
-                web::resource("/marriage")
-                .route(web::post().to_async(handlers::marry))
-                )
-            .service(
-                web::resource("/events")
-                .route(web::get().to_async(handlers::update))
-                )
-            .default_service(
-                web::route().to_async(handlers::forward)
-                )
-    })
-    .bind(domain)?
-    .run()
+    run("127.0.0.1:3012", pgpool).await;
 }
