@@ -1,5 +1,6 @@
 <script context="module">
 import { createEventDispatcher } from 'svelte';
+import { onMount, onDestroy } from 'svelte';
 
 const press_duration = 0.5;
 const press_range = 30;
@@ -63,6 +64,7 @@ function drag(e, callback){
     target.style.left = mouse_x - last_mouse_x + last_target_x + "px";
     target.style.top = mouse_y - last_mouse_y + last_target_y + "px";
     callback['drag'](target);
+    document.getElementsByClassName();
 }
 
 function mousedown(e, callback){
@@ -115,6 +117,9 @@ let callback = {
     "dragend": dragend_callback,
     "drag": drag_callback,
 };
+/*onMount(async ()=>{
+
+});*/
 </script>
 
 <style>
@@ -132,6 +137,6 @@ div:active:hover {
 
 <svelte:window on:mouseup={e=>mouseup(e, callback)} on:touchend={e=>touchend(e, callback)} on:mousemove={e=>drag(e, callback)} on:touchmove={e=>drag(e, callback)} />
 
-<div class:is_dragging on:mousedown={e=>mousedown(e, callback)} on:touchstart={e=>touchstart(e, callback)} on:touchmove={e=>touchmove(e, callback)}>
+<div class:is_dragging class="dragging-interactable" on:mousedown={e=>mousedown(e, callback)} on:touchstart={e=>touchstart(e, callback)} on:touchmove={e=>touchmove(e, callback)}>
     <slot></slot>
 </div>

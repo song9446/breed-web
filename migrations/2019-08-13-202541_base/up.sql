@@ -32,6 +32,7 @@ CREATE TABLE characters (
     surname TEXT,
     matherid INTEGER REFERENCES characters (id),
     fatherid INTEGER REFERENCES characters (id),
+    partnerid INTEGER REFERENCES characters (id),
     ownerid INTEGER REFERENCES users (id),
     jobid INTEGER REFERENCES jobs (id),
     height FLOAT NOT NULL DEFAULT 160.0,

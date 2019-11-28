@@ -1,13 +1,12 @@
 export class Application {
-    constructor(server_url, image_server_url){
+    constructor(server_url){
         this.server_url = server_url;
-        this.image_server_url = image_server_url;
     }
     gamedata(){
         return this._gamedata;
     }
-    character_image_url(ch){
-        return this.image_server_url + "/" + ch.id + ".png"
+    character_image_url(ch, pose){
+        return ch.image_server_domain + "/" + ch.id + "/" + pose + ".png";
     }
 	update(){
         return fetch(this.server_url + "/events", {
@@ -65,7 +64,7 @@ export class Application {
     }
     summon_character(user) {
         if(this.update_mana(user).mana - user.summon_mana_cost < 0)
-            return Promise.resolve({"error": {code:401, message:"Not enough mana"}});
+            return Promise.resolve({"type": "error", "code":401, "message":"Not enough mana"});
         return fetch(this.server_url + "/characters", {
             method: 'post',
             credentials: 'include',
@@ -76,11 +75,11 @@ export class Application {
         .then(res=>res.json())
     }
     marry(ch1, ch2) {
-        if(ch1.owner != ch2.owner || ch1.partnerid != null || ch2.partnerid == null)
-            return Promise.resolve({"error": {code:401, message:"Characters already have a partner"}});
+        if(ch1.ownerid != ch2.ownerid || ch1.partnerid != null || ch2.partnerid != null)
+            return Promise.resolve({"type": "error", "code":401, "message":"Characters already have a partner"});
         return fetch(this.server_url + "/marriage", {
             method: 'post',
-            body:JSON.stringify({"marrier": [ch1.id, ch2.id]}),
+            body:JSON.stringify({"groomid": ch1.id, "brideid": ch2.id}),
             credentials: 'include',
             headers:{
                 'Content-Type': 'application/json'
@@ -170,4 +169,4 @@ export class Application {
     };
     }
 };
-export const app = new Application("http://127.0.0.1:3000", "http://127.0.0.1:8000");
+export const app = new Application("http://182.216.235.20:8888");

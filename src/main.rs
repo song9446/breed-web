@@ -14,6 +14,8 @@ use actix_session::{CookieSession};
 use actix_web::{middleware, web, App, HttpServer,};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
+use url::Url;
+use actix_web::client::Client;
 
 // use r2d2_beanstalkd::BeanstalkdConnectionManager;
 
@@ -45,19 +47,22 @@ fn main() -> std::io::Result<()> {
         .expect("Failed to create mq pool.");
         */
     let front_url = std::env::var("FRONT_URL").expect("FRONT_URL must be set");
+    let front_url = Url::parse(front_url.as_str()).expect("FRONT_URL is invalid format(should be [protocol]://[addr]:[port])");
     let domain = std::env::var("DOMAIN").expect("DOMAIN must be set");
-    let domain_for_cookiesession = front_url.clone();
+    //let domain_for_cookiesession = front_url.clone();
     //let domain_for_cookiesession = domain.clone();
 
     // Start http server
     HttpServer::new(move || {
         App::new()
             .data(pgpool.clone())
+            .data(Client::new())
+            .data(front_url.clone())
             //.data(mqpool.clone())
-            .wrap(actix_cors::Cors::new()
+            /*.wrap(actix_cors::Cors::new()
                   .allowed_origin(front_url.as_str())
                   .supports_credentials()
-            )
+            )*/
             .wrap(middleware::Logger::default())
             .wrap(CookieSession::signed(secret_key.as_bytes())
                  //.domain(domain_for_cookiesession.as_str())
@@ -68,7 +73,6 @@ fn main() -> std::io::Result<()> {
             .service(
                 web::resource("/session")
                 .route(web::get().to_async(handlers::reload_session))
-                //.route(web::put().to_async(handlers::login))
                 .route(web::post().to_async(handlers::login))
                 .route(web::delete().to(handlers::logout))
                 )
@@ -82,8 +86,15 @@ fn main() -> std::io::Result<()> {
                 .route(web::post().to_async(handlers::summon_character))
                 )
             .service(
+                web::resource("/marriage")
+                .route(web::post().to_async(handlers::marry))
+                )
+            .service(
                 web::resource("/events")
                 .route(web::get().to_async(handlers::update))
+                )
+            .default_service(
+                web::route().to_async(handlers::forward)
                 )
     })
     .bind(domain)?

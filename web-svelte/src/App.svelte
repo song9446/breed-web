@@ -36,9 +36,7 @@ function logout(){
 </style>
 
 <div class="container">
-<div class="topnav">
-    <SessionManagePage on:login={login} on:logout={logout} />
-</div>
+<SessionManagePage on:login={login} on:logout={logout} class="topnav" />
 {#if logined }
 <div class="main">
     <Game user={user} characters={characters}/>

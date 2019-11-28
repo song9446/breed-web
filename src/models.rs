@@ -86,13 +86,14 @@ pub struct UserManaUpdated {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug)]
+#[derive(Serialize, Deserialize, Queryable, Identifiable, Associations, Debug, Clone)]
 pub struct Character {
     pub id: i32,
     pub firstname: String,
     pub surname: Option<String>,
     pub matherid: Option<i32>,
     pub fatherid: Option<i32>,
+    pub partnerid: Option<i32>,
     pub ownerid: Option<i32>,
     pub jobid: Option<i32>,
     pub height: f64,

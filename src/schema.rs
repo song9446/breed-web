@@ -5,6 +5,7 @@ table! {
         surname -> Nullable<Text>,
         matherid -> Nullable<Int4>,
         fatherid -> Nullable<Int4>,
+        partnerid -> Nullable<Int4>,
         ownerid -> Nullable<Int4>,
         jobid -> Nullable<Int4>,
         height -> Float8,

@@ -4,10 +4,10 @@
 export let event = null;
 function highlight_related_elements(){
     console.log("hovered..");
-    event.related_element_ids.forEach(id=>
+    event.related_element_ids.forEach(id=>{
         console.log("highlight..", id);
         document.getElementById(id).classList.add("highlight")
-    );
+    });
 }
 function neglet_related_elements(){
     event.related_element_ids.forEach(id=>

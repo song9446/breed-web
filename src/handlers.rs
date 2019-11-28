@@ -6,9 +6,14 @@ use diesel::QueryDsl;
 use diesel::result::{DatabaseErrorKind, Error as DBError};
 
 use futures::Future;
+use futures::stream::Stream;
 
-use actix_web::{web, HttpResponse};
+use url::Url;
+
+use actix_web::{web, HttpResponse, HttpRequest, Error};
+use actix_web::client::Client;
 //use futures::Future;
+//u
 
 use crate::models::{NewUser, User, UserWithPassword, UserManaUpdated, Pool, Character, NewCharacter};
 
@@ -186,6 +191,89 @@ pub fn summon_character(session: Session, dbpool: web::Data<Pool>) -> impl Futur
 }
 
 
+
+
+#[derive(Serialize, Deserialize)]
+pub struct Marrier {
+    pub groomid: i32,
+    pub brideid: i32,
+}
+pub fn marry(data: web::Json<Marrier>, session: Session, pool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = Response> {
+    let user_id = session.get("id")
+        .map_err(|_| Response::unauthorized(""))
+        .and_then(|val| val.ok_or(Response::unauthorized("")));
+    web::block(move || {
+        use crate::schema::characters::dsl::*;
+        let data = data.into_inner();
+        if data.groomid == data.brideid {
+            return Err(Response::bad_request("you cannot marry with yourself"));
+        }
+        let user_id: i32 = user_id?;
+        let conn: &PgConnection = &pool.get().unwrap();
+		let marriers = {
+			characters
+				.filter(id.eq(data.groomid).or(id.eq(data.brideid)))
+				.load::<Character>(conn)
+				.map_err(|_| Response::internal_server_error("no such characters"))?
+		};
+        if marriers.len() < 2 {
+            return Err(Response::bad_request("you don't have such character"));
+        }
+        if marriers[0].partnerid.is_some() || marriers[1].partnerid.is_some() {
+            return Err(Response::bad_request("character already has a partner"));
+        }
+        if marriers[0].ownerid.is_none() || marriers[1].ownerid.is_none() || marriers[0].ownerid.unwrap() != user_id || marriers[1].ownerid.unwrap() != user_id {
+            return Err(Response::bad_request("you donot have the characters"));
+        }
+        diesel::update(characters.filter(id.eq(data.groomid))).set(partnerid.eq(data.brideid))
+            .execute(conn)?;
+        diesel::update(characters.filter(id.eq(data.brideid))).set(partnerid.eq(data.groomid))
+            .execute(conn)?;
+		//Ok(Response::login{ user: user_with_password.without_password(), characters })
+        Ok(Response::event{ event: Event::married{groomid: data.groomid, brideid: data.brideid } })
+    })
+	.from_err::<Response>()
+    .and_then(move |result| {
+		Ok(HttpResponse::Ok().json(result))
+	})
+}
+
+pub fn forward(req: HttpRequest, body: web::Bytes, url: web::Data<Url>, client: web::Data<Client>) -> impl Future<Item = HttpResponse, Error = Error> {
+	// Copied from https://github.com/actix/examples/tree/master/http-proxy/src
+    let mut new_url = url.get_ref().clone();
+    new_url.set_path(req.uri().path());
+    new_url.set_query(req.uri().query());
+    // TODO: This forwarded implementation is incomplete as it only handles the inofficial
+    // X-Forwarded-For header but not the official Forwarded one.
+    let forwarded_req = client
+        .request_from(new_url.as_str(), req.head())
+        .no_decompress();
+    let forwarded_req = if let Some(addr) = req.head().peer_addr {
+        forwarded_req.header("x-forwarded-for", format!("{}", addr.ip()))
+    } else {
+        forwarded_req
+    };
+    forwarded_req
+        .send_body(body)
+        .map_err(Error::from)
+        .map(|mut res| {
+            let mut client_resp = HttpResponse::build(res.status());
+            // Remove `Connection` as per
+            // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection#Directives
+            for (header_name, header_value) in
+                res.headers().iter().filter(|(h, _)| *h != "connection")
+            {
+                client_resp.header(header_name.clone(), header_value.clone());
+            }
+            res.body()
+                .into_stream()
+                .concat2()
+                .map(move |b| client_resp.body(b))
+                .map_err(|e| e.into())
+        })
+        .flatten()
+}
+
 pub fn update(session: Session, dbpool: web::Data<Pool>) -> impl Future<Item = HttpResponse, Error = Response> {
     let user_id = session.get("id")
         .map_err(|_| Response::unauthorized(""))
@@ -203,9 +291,7 @@ pub fn update(session: Session, dbpool: web::Data<Pool>) -> impl Future<Item = H
             for ch in &chs {
                 Event::push_events(&mut events, &ch, &chs);
             }
-            for event in &events {
-                event.apply(&conn)?;
-            }
+            let events:Vec<Event> = events.into_iter().map(|e| e.apply(&conn, user_id).unwrap()).collect();
             Ok(Response::events{ events })
         })
     })

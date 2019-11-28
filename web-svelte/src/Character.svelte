@@ -4,7 +4,14 @@ import { app } from './app.js';
 export const character_element_id_prefix = "character";
 export const couple_element_id_prefix = "couple";
 const path_element_id_prefix = "path";
-let pathes_highlighted_store = writable({});
+
+let line_updaters = {};
+
+setInterval(()=>{
+    for(let id in line_updaters){
+        line_updaters[id]();
+    }
+},);
 
 </script>
 <script>
@@ -12,6 +19,7 @@ let pathes_highlighted_store = writable({});
 import { fade, fly } from 'svelte/transition';
 import { onMount } from 'svelte';
 import Draggable from './Draggable.svelte';
+import CharacterCard from './CharacterCard.svelte';
 
 export let character = {
     "id": -1,
@@ -27,58 +35,30 @@ let partner_line_end = null;
 function update_line_variables(){
     let ch = document.getElementById(couple_element_id_prefix + character.id),
         rect = ch.getBoundingClientRect();
-    children_line_start = [rect.left + rect.width*0.5, rect.top + rect.height*0.5, character.id];
+    children_line_start = [rect.left + rect.width*0.5, rect.top + rect.height*0.5 + window.scrollY, character.id];
     children_line_ends = character.children.map(ch=>{
         let rect = document.getElementById(character_element_id_prefix + ch.id).getBoundingClientRect();
-        return [rect.left + rect.width*0.5, rect.top + rect.height*0.5, ch.id];
+        return [rect.left + rect.width*0.5, rect.top + rect.height*0.5 + window.scrollY, ch.id];
     });
-    if(character.husband != null){
+    if(character.husband != null || character.wife != null){
+        let partner = character.husband || character.wife;
         let ch1 = document.getElementById(character_element_id_prefix + character.id),
             rect1 = ch1.getBoundingClientRect(),
-            ch2 = document.getElementById(character_element_id_prefix + character.husband.id),
+            ch2 = document.getElementById(character_element_id_prefix + partner.id),
             rect2 = ch2.getBoundingClientRect();
-        partner_line_start = [rect1.left + rect1.width*0.5, rect1.top + rect1.height*0.5, character.id];
-        partner_line_end = [rect2.left + rect2.width*0.5, rect2.top + rect2.height*0.5, character.husband.id];
+        partner_line_start = [rect1.left + rect1.width*0.5, rect1.top + rect1.height*0.5 + window.scrollY, character.id];
+        partner_line_end = [rect2.left + rect2.width*0.5, rect2.top + rect2.height*0.5 + window.scrollY, partner.id];
         children_line_start = [(partner_line_start[0]+partner_line_end[0])*0.5, 
                                (partner_line_start[1]+partner_line_end[1])*0.5, character.id]; 
     }
 }
-onMount(async () => update_line_variables());
-
-function hover(){
-    let pathes_highlighted_ = {};
-    if(character.mather)
-        pathes_highlighted_[path_element_id_prefix + [character.id, character.mather.id].sort().join("-")] = true;
-    if(character.father)
-        pathes_highlighted_[path_element_id_prefix + [character.id, character.father.id].sort().join("-")] = true;
-    if(character.father && character.mather)
-        pathes_highlighted_[path_element_id_prefix + [character.mather.id, character.father.id].sort().join("-")] = true;
-    if(character.husband){
-        pathes_highlighted_[path_element_id_prefix + [character.id, character.husband.id].sort().join("-")] = true;
-        if(character.husband.children){
-            for(let child of character.husband.children)
-                pathes_highlighted_[path_element_id_prefix + [character.id, child.id].sort().join("-")] = true;
-        }
-        }
-    if(character.wife){
-        pathes_highlighted_[path_element_id_prefix + [character.id, character.wife.id].sort().join("-")] = true;
-        if(character.wife.children){
-            for(let child of character.wife.children)
-                pathes_highlighted_[path_element_id_prefix + [character.id, child.id].sort().join("-")] = true;
-        }
-    }
-    if(character.children){
-        for(let child of character.children)
-            pathes_highlighted_[path_element_id_prefix + [character.id, child.id].sort().join("-")] = true;
-    }
-    console.log(pathes_highlighted_);
-    pathes_highlighted_store.set(pathes_highlighted_);
+let mounted = false;
+onMount(async () => mounted = true);
+$: if(mounted) {
+    update_line_variables()
 }
 
-let pathes_highlighted = {};
-pathes_highlighted_store.subscribe(v => {
-    pathes_highlighted = v;
-});
+
 </script>
 
 
@@ -111,6 +91,7 @@ ul.character-children {
 ul.character-children>li{
   margin: 1.5vw;
 }
+
 ul.character-properties {
   display: flex;
   flex-direction: column;
@@ -125,6 +106,10 @@ ul.character-properties {
   max-width: 128px;
   width: 10vw;
 }
+ul.character-properties.highlight {
+  border: 2px solid red;
+}
+
 img {
    min-width: 32px;
    max-width: 128px;
@@ -156,9 +141,6 @@ path.highlight {
   }
 }
 
-ul.character-properties.highlight {
-    border: 2px solid red;
-}
 </style>
 
 <svelte:window on:resize={update_line_variables}/>
@@ -181,32 +163,26 @@ ul.character-properties.highlight {
         <g fill="none" stroke="white" stroke-width="6" stroke-linecap="none">
             {#each children_line_ends as line_end}
             <path 
-                class:highlight={pathes_highlighted[path_element_id_prefix + [children_line_start[2], line_end[2]].sort().join("-")]}
                 d="M{children_line_start[0]},{children_line_start[1]} C{children_line_start[0]},{line_end[1]} {line_end[0]},{children_line_start[1]} {line_end[0]},{line_end[1]}"/>
             {/each}
         </g>
         <g fill="none" stroke="black" stroke-width="4" stroke-linecap="none">
             {#each children_line_ends as line_end}
             <path 
-                class:highlight={pathes_highlighted[path_element_id_prefix + [children_line_start[2], line_end[2]].sort().join("-")]}
                 d="M{children_line_start[0]},{children_line_start[1]} C{children_line_start[0]},{line_end[1]} {line_end[0]},{children_line_start[1]} {line_end[0]},{line_end[1]}"/>
             {/each}
         </g>
         {#if partner_line_start}
         <g fill="none" stroke="white" stroke-width="6" stroke-linecap="none">
             <path 
-                class:highlight={pathes_highlighted[path_element_id_prefix + [partner_line_start[2], partner_line_end[2]].sort().join("-")]}
                 d="M{partner_line_start[0]},{partner_line_start[1]} {(partner_line_start[0]+partner_line_end[0])*0.5},{(partner_line_start[1]+partner_line_end[1])*0.5}"/>
             <path 
-                class:highlight={pathes_highlighted[path_element_id_prefix + [partner_line_end[2], partner_line_start[2]].sort().join("-")]}
                 d="M{partner_line_end[0]},{partner_line_end[1]} {(partner_line_start[0]+partner_line_end[0])*0.5},{(partner_line_start[1]+partner_line_end[1])*0.5}"/>
         </g>
         <g fill="none" stroke="black" stroke-width="4" stroke-linecap="none">
             <path 
-                class:highlight={pathes_highlighted[path_element_id_prefix + [partner_line_start[2], partner_line_end[2]].sort().join("-")]}
                 d="M{partner_line_start[0]},{partner_line_start[1]} {(partner_line_start[0]+partner_line_end[0])*0.5},{(partner_line_start[1]+partner_line_end[1])*0.5}"/>
             <path 
-                class:highlight={pathes_highlighted[path_element_id_prefix + [partner_line_end[2], partner_line_start[2]].sort().join("-")]}
                 d="M{partner_line_end[0]},{partner_line_end[1]} {(partner_line_start[0]+partner_line_end[0])*0.5},{(partner_line_start[1]+partner_line_end[1])*0.5}"/>
         </g>
         {/if}
@@ -214,17 +190,23 @@ ul.character-properties.highlight {
 
     <ul class="character-parents" id="{couple_element_id_prefix}{character.id}">
         <li>
-            <Draggable>
-                <ul class="character-properties" id="{character_element_id_prefix}{character.id}"  on:mouseover={hover}>
-                    <!--<li><img src={app.character_image_url(character)} alt="loading.." style="width:{width}px; height:{height}px"/></li>-->
-                    <li><img src={app.character_image_url(character)} alt="loading.." /></li>
-                    <li>{character.firstname} <strong>{character.surname || ""}</strong></li>
-                </ul>
-            </Draggable>
+            <CharacterCard character={character}
+                on:dragstart
+                on:drop />
+                <!--<li><img draggable="false" src={app.character_image_url(character, "default")} alt="loading.." style="width:{width}px; height:{height}px"/></li>-->
         </li>
         {#if character.husband}
         <li>
-            <svelte:self character={character.husband} />
+            <CharacterCard character={character.husband}
+                on:dragstart
+                on:drop />
+        </li>
+        {/if}
+        {#if character.wife}
+        <li>
+            <CharacterCard character={character.wife}
+                on:dragstart
+                on:drop />
         </li>
         {/if}
     </ul>
@@ -232,7 +214,9 @@ ul.character-properties.highlight {
     <ul class="character-children">
         {#each character.children as child}
         <li>
-            <svelte:self character={child} /> 
+            <svelte:self character={child} 
+                on:dragstart
+                on:drop />
         </li>
         {/each}
     </ul>
