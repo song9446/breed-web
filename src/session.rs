@@ -83,7 +83,7 @@ impl Session {
         self.user.mana = updated_mana;
         self.user.mana_updated_at = now;
     }
-    pub async fn summon(&mut self) -> Result<()> {
+    async fn summon(&mut self) -> Result<()> {
         self.mana_update();
         if self.user.mana < self.user.summon_mana_cost {
             return Err(anyhow!("mana not enough for summoning"));
@@ -103,7 +103,7 @@ impl Session {
         //self.event_queue.push();
         Ok(())
     }
-    pub async fn marry(&mut self, groomid: i32, brideid: i32) -> Result<()> {
+    async fn marry(&mut self, groomid: i32, brideid: i32) -> Result<()> {
         if groomid == brideid {
             return Err(anyhow!("you cannot marry yourself"));
         }
@@ -122,6 +122,8 @@ impl Session {
             })),
         });
         Ok(())
+    }
+    pub async fn action(&mut self, action: action::Action) -> Result<()> {
     }
 }
 

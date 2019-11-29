@@ -44,8 +44,14 @@ pub type DbPool = r2d2::Pool<ConnectionManager<diesel::PgConnection>>;
 const LOGIN_TIMEOUT :Duration = Duration::from_secs(5);
 const REACTION_TIMEOUT :Duration = Duration::from_secs(5);
 
+struct GlobalSession {
+    _drop: oneshot,
+
+}
+
 async fn run(addr: &str, dbpool: DbPool) {
     let mut listener = TcpListener::bind(addr).await.unwrap();
+    let socket_global_sessions = slab::Slab::new();
     while let Ok((sock, _)) = listener.accept().await {
         let dbpool = dbpool.clone();
         tokio::spawn(async move {
